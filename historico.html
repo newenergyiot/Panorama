@@ -23,7 +23,7 @@
             --border-color: #e2e8f0;
         }
 
-        * { box-sizing: border-box; }
+        *, *::before, *::after { box-sizing: border-box; }
 
         body {
             font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -177,89 +177,6 @@
             text-align: center;
         }
 
-        .modal-overlay {
-            position: fixed;
-            inset: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(15, 23, 42, 0.6);
-            backdrop-filter: blur(4px);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 1000;
-            padding: 20px;
-        }
-
-        .modal-content {
-            background: var(--card-bg);
-            width: 100%;
-            max-width: 800px;
-            max-height: 90vh;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
-
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 12px;
-            border-bottom: 1px solid var(--border-color);
-        }
-
-        .modal-header h3 {
-            margin: 0;
-            font-size: 1.3rem;
-        }
-
-        .btn-close {
-            background: transparent;
-            border: none;
-            font-size: 1.5rem;
-            cursor: pointer;
-            color: var(--text-secondary);
-            padding: 0 8px;
-        }
-
-        .stats-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 15px;
-        }
-
-        .stat-box {
-            background: var(--bg-color);
-            padding: 12px;
-            border-radius: 10px;
-            border: 1px solid var(--border-color);
-            text-align: center;
-        }
-
-        .stat-box h3 {
-            margin: 0;
-            font-size: 1.3rem;
-        }
-
-        .stat-box p {
-            margin: 4px 0 0;
-            font-size: 0.8rem;
-            color: var(--text-secondary);
-        }
-
-        .modal-body-scroll {
-            overflow-y: auto;
-            flex: 1;
-            min-height: 100px;
-            padding-right: 5px;
-        }
-
         /* =====================================================
            RODAPÉ NEWENERGY
            ===================================================== */
@@ -336,7 +253,6 @@
             body { padding: 10px; }
             .header-card { padding: 15px; }
             .actions button { width: 100%; }
-            .modal-content { padding: 15px; }
             .item { align-items: flex-start; }
 
             .footer-newenergy {
@@ -392,6 +308,14 @@
         </div>
     </div>
 </div>
+
+<script>
+"use strict";
+
+/* =========================================================
+   FIREBASE
+   ========================================================= */
+
 const firebaseConfig = {
   apiKey: "AIzaSyCXh0pBOF4X7ERQh3NvLcClgltnoXEWlTs",
   authDomain: "panorama-48794.firebaseapp.com",
@@ -455,7 +379,8 @@ document.addEventListener("DOMContentLoaded", () => {
 function setupEventListeners() {
     elements.btnVoltar.addEventListener("click", voltarPainel);
     elements.btnPdf.addEventListener("click", exportarPDF);
-elements.tabsGroup.addEventListener("click", event => {
+
+    elements.tabsGroup.addEventListener("click", event => {
         const tab = event.target.closest(".tab");
         if (!tab) return;
 
@@ -482,8 +407,6 @@ function escapeHtml(value) {
         "'": "&#039;"
     })[char]);
 }
-
-
 
 function dataLocalISO(data) {
     const ano = data.getFullYear();
@@ -776,7 +699,7 @@ async function fetchData(periodo) {
     }
 }
 
-                    function renderUI() {
+function renderUI() {
     elements.listaHistorico.innerHTML = "";
 
     let ultimaData = "";
@@ -911,141 +834,7 @@ function mostrarSemDados() {
         '<p style="text-align:center;padding:40px">Nenhum registro encontrado no período selecionado.</p>';
 }
 
-                    function renderUI() {
-    elements.listaHistorico.innerHTML = "";
-
-    let ultimaData = "";
-
-    state.globalData.forEach(item => {
-        if (item.data !== ultimaData) {
-            const divider = document.createElement("div");
-            divider.className = "data-divider";
-            divider.textContent = item.data;
-
-            elements.listaHistorico.appendChild(divider);
-            ultimaData = item.data;
-        }
-
-        const { erroTemp, erroHum, temErro } =
-            checarErro(item.temp, item.hum);
-
-        const div = document.createElement("div");
-        div.className = `item ${temErro ? "alerta" : ""}`;
-
-        div.innerHTML = `
-            <div><b>${escapeHtml(item.hora)}</b></div>
-            <div style="display:flex;gap:20px;text-align:right">
-                <div>
-                    <small>TEMP</small><br>
-                    <span class="${erroTemp ? "valor-critico" : ""}">
-                        ${item.temp.toFixed(1)}°C
-                    </span>
-                </div>
-                <div>
-                    <small>UMID</small><br>
-                    <span class="${erroHum ? "valor-critico" : ""}">
-                        ${item.hum.toFixed(1)}%
-                    </span>
-                </div>
-                <div>
-                    <small>STATUS</small><br>
-                    <span class="${temErro ? "valor-critico" : "normal"}">
-                        ${temErro ? "ALERTA" : "OK"}
-                    </span>
-                </div>
-            </div>
-        `;
-
-        elements.listaHistorico.appendChild(div);
-    });
-}
-
-function renderChart(periodo) {
-    if (!elements.chartCtx) return;
-
-    const dados =
-        [...state.globalData].sort((a, b) => a.ts - b.ts);
-
-    const gradTemp =
-        elements.chartCtx.createLinearGradient(0, 0, 0, 300);
-
-    gradTemp.addColorStop(0, "rgba(244, 63, 94, 0.2)");
-    gradTemp.addColorStop(1, "rgba(244, 63, 94, 0)");
-
-    const gradHum =
-        elements.chartCtx.createLinearGradient(0, 0, 0, 300);
-
-    gradHum.addColorStop(0, "rgba(0, 122, 255, 0.2)");
-    gradHum.addColorStop(1, "rgba(0, 122, 255, 0)");
-
-    state.chartInstance = new Chart(elements.chartCtx, {
-        type: "line",
-
-        data: {
-            labels: dados.map(item =>
-                (periodo === "diario" || periodo === "semanal")
-                    ? `${item.data.split("/")[0]}/${item.data.split("/")[1]} ${item.hora}`
-                    : item.data
-            ),
-
-            datasets: [
-                {
-                    label: "Temperatura (°C)",
-                    data: dados.map(item => item.temp),
-                    borderColor: "#f43f5e",
-                    backgroundColor: gradTemp,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: dados.length > 40 ? 0 : 3,
-                    borderWidth: 2
-                },
-                {
-                    label: "Umidade (%)",
-                    data: dados.map(item => item.hum),
-                    borderColor: "#007aff",
-                    backgroundColor: gradHum,
-                    fill: true,
-                    tension: 0.3,
-                    pointRadius: dados.length > 40 ? 0 : 3,
-                    borderWidth: 2
-                }
-            ]
-        },
-
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            interaction: {
-                mode: "index",
-                intersect: false
-            },
-            plugins: {
-                legend: {
-                    position: "top"
-                }
-            },
-            scales: {
-                x: {
-                    ticks: {
-                        autoSkip: true,
-                        maxTicksLimit: 8
-                    }
-                },
-                y: {
-                    grid: {
-                        color: "#f1f5f9"
-                    }
-                }
-            }
-        }
-    });
-}
-
-function mostrarSemDados() {
-    elements.listaHistorico.innerHTML =
-        '<p style="text-align:center;padding:40px">Nenhum registro encontrado no período selecionado.</p>';
-}
-                    /* =========================================================
+/* =========================================================
    PDF - TEMPERATURA E UMIDADE
    ========================================================= */
 
@@ -1225,13 +1014,17 @@ async function exportarPDF() {
     }
 }
 
+/* =========================================================
+   NAVEGAÇÃO
+   ========================================================= */
+
 function voltarPainel() {
     window.location.href = "admin.html";
 }
 
 </script>
 
-            <!-- =====================================================
+<!-- =====================================================
      RODAPÉ NEWENERGY
      ===================================================== -->
 

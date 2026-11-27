@@ -1,161 +1,298 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
-
 <head>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1">
-    <title>Central NewEnergy</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-messaging-compat.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
-    <link rel="manifest" href="manifest.json">
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Central NewEnergy</title>
+
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-database-compat.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+
+  <style>
+    .campo {
+      width: 100%;
+      box-sizing: border-box;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: .875rem;
+      outline: none;
+    }
+
+    .campo:focus {
+      border-color: #3b82f6;
+      box-shadow: 0 0 0 2px #bfdbfe;
+    }
+  </style>
 </head>
 
 <body class="bg-slate-50 font-sans min-h-screen">
 
-    <!-- CABEÇALHO --->
-    <header class="bg-white border-b p-5 shadow-sm">
-        <div class="max-w-7xl mx-auto flex justify-between items-center">
-            <div class="cursor-pointer select-none" id="logoAdmin" title="Clique 5 vezes para opções administrativas">
-                <h1 class="text-2xl font-bold text-slate-800">CENTRAL NEWENERGY</h1>
-                <p class="text-sm text-blue-600">Monitoramento Geral</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <span id="status" class="text-sm text-slate-500">● Conectando...</span>
-                <button onclick="solicitarPermissaoPush()" id="btnPush" class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-xl text-xs flex items-center gap-1">
-                    🔔 Ativar Alertas Push
-                </button>
-                <button id="btnNovoSensor" onclick="abrirModal()" class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-sm">
-                    + Novo Sensor
-                </button>
-                <button onclick="fazerLogout()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2 rounded-xl text-xs">
-                    Sair
-                </button>
-            </div>
-        </div>
-    </header>
+<header class="bg-white border-b p-5 shadow-sm">
+  <div class="max-w-7xl mx-auto flex flex-wrap gap-3 justify-between items-center">
 
-    <!-- SENSORES -->
-    <main class="max-w-7xl mx-auto p-6">
-        <div id="sensores" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
-    </main>
-
-    <!-- MODAL DE CONFIGURAÇÃO / PAINEL DE SERVIÇO -->
-    <div id="modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
-        <div class="bg-white rounded-2xl p-6 w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
-            <div class="flex justify-between items-center mb-5 border-b pb-3">
-                <div>
-                    <h2 id="titulo" class="text-lg font-bold text-slate-800">Novo Sensor</h2>
-                    <p class="text-xs text-slate-500">Configurações Gerais e Serviços</p>
-                </div>
-                <button onclick="fecharModal()" class="text-slate-400 hover:text-slate-600 font-bold">✕</button>
-            </div>
-
-            <form onsubmit="salvar(event)" class="space-y-4">
-                <div class="space-y-2">
-                    <span class="text-xs font-bold text-blue-600 uppercase tracking-wider">Informações Principais</span>
-                    <input id="id" required placeholder="SENSOR_01" class="campo">
-                    <input id="nome" required placeholder="Local / Equipamento (Ex: Sala Vacinas)" class="campo">
-                    <input id="cliente" required placeholder="Nome do Cliente" class="campo">
-                </div>
-
-                <div class="space-y-2 pt-2 border-t border-slate-100">
-                    <span class="text-xs font-bold text-amber-600 uppercase tracking-wider">Limites de Alerta & Notificação</span>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Temp. Mínima (°C)</label>
-                            <input id="tempMin" type="number" step="0.1" placeholder="2.0" class="campo">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Temp. Máxima (°C)</label>
-                            <input id="tempMax" type="number" step="0.1" placeholder="8.0" class="campo">
-                        </div>
-                    </div>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Umid. Mínima (%)</label>
-                            <input id="humMin" type="number" step="1" placeholder="30" class="campo">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Umid. Máxima (%)</label>
-                            <input id="humMax" type="number" step="1" placeholder="70" class="campo">
-                        </div>
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">E-mail para Alertas</label>
-                        <input id="emailAlerta" type="email" placeholder="tecnico@empresa.com" class="campo">
-                    </div>
-                </div>
-
-                <div class="space-y-2 pt-2 border-t border-slate-100">
-                    <span class="text-xs font-bold text-slate-600 uppercase tracking-wider">Parâmetros Operacionais</span>
-                    <div class="grid grid-cols-2 gap-2">
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Leitura (segundos)</label>
-                            <input id="freqRegistro" type="number" placeholder="60" class="campo">
-                        </div>
-                        <div>
-                            <label class="text-xs font-bold text-slate-500">Alerta (minutos)</label>
-                            <input id="intervaloAlerta" type="number" placeholder="15" class="campo">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="space-y-2 pt-2 border-t border-slate-100">
-                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Mapeamento Firebase</span>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Rota Temperatura</label>
-                        <input id="rotaTemp" required placeholder="/temp" class="campo">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Rota Umidade</label>
-                        <input id="rotaHum" required placeholder="/hum" class="campo">
-                    </div>
-                    <div>
-                        <label class="text-xs font-bold text-slate-500">Rota Último Contato</label>
-                        <input id="rotaLastSeen" required placeholder="/last_seen" class="campo">
-                    </div>
-                </div>
-
-                <div class="flex gap-2 pt-3 border-t">
-                    <button type="button" onclick="fecharModal()" class="w-1/3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold py-3 rounded-xl">
-                        Cancelar
-                    </button>
-                    <button id="salvarBtn" type="submit" class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
-                        Salvar Configurações
-                    </button>
-                </div>
-            </form>
-        </div>
+    <div id="logoAdmin" class="cursor-pointer select-none"
+         title="Clique 5 vezes para opções administrativas">
+      <h1 class="text-2xl font-bold text-slate-800">CENTRAL NEWENERGY</h1>
+      <p class="text-sm text-blue-600">Monitoramento Geral</p>
     </div>
 
-    <!-- ESTILO -->
-    <style>
-        .campo {
-            width: 100%;
-            box-sizing: border-box;
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: 10px 12px;
-            font-size: 0.875rem;
-            outline: none;
-        }
-        .campo:focus {
-            border-color: #3b82f6;
-            box-shadow: 0 0 0 2px #bfdbfe;
-        }
-    </style>
+    <div class="flex flex-wrap items-center gap-3">
 
-    <script>
-        (function(){
-            emailjs.init("IHpcp88nTn99ykif9");
-        })();
+      <span id="status" class="text-sm text-slate-500">
+        ● Conectando...
+      </span>
 
-       const firebaseConfig = {
+      <button onclick="solicitarPermissaoPush()" id="btnPush"
+        class="bg-amber-500 hover:bg-amber-600 text-white font-bold px-3 py-2 rounded-xl text-xs">
+        🔔 Ativar Alertas Push
+      </button>
+
+      <button id="btnNovoSensor" onclick="abrirModal()"
+        class="hidden bg-blue-600 hover:bg-blue-700 text-white font-bold px-4 py-2 rounded-xl text-sm">
+        + Novo Sensor
+      </button>
+
+      <button onclick="fazerLogout()"
+        class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-bold px-3 py-2 rounded-xl text-xs">
+        Sair
+      </button>
+
+    </div>
+  </div>
+</header>
+
+<main class="max-w-7xl mx-auto p-6">
+  <div id="sensores" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"></div>
+</main>
+
+<!-- MODAL DO SENSOR -->
+
+<div id="modal" class="hidden fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-50 overflow-y-auto">
+
+  <div class="bg-white rounded-2xl p-6 w-full max-w-lg my-8 max-h-[90vh] overflow-y-auto">
+
+    <div class="flex justify-between items-center mb-5 border-b pb-3">
+
+      <div>
+        <h2 id="titulo" class="text-lg font-bold text-slate-800">
+          Novo Sensor
+        </h2>
+
+        <p class="text-xs text-slate-500">
+          Configurações Gerais e Serviços
+        </p>
+      </div>
+
+      <button onclick="fecharModal()" class="text-slate-400 font-bold">
+        ✕
+      </button>
+
+    </div>
+
+    <form id="formSensor" onsubmit="salvar(event)" class="space-y-4">
+
+      <div class="space-y-2">
+        <span class="text-xs font-bold text-blue-600 uppercase">
+          Informações Principais
+        </span>
+
+        <input id="id" required placeholder="SENSOR_01" class="campo">
+        <input id="nome" required placeholder="Local / Equipamento" class="campo">
+        <input id="cliente" required placeholder="Nome do Cliente" class="campo">
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+
+        <span class="text-xs font-bold text-amber-600 uppercase">
+          Limites de Alerta
+        </span>
+
+        <div class="grid grid-cols-2 gap-2">
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Temperatura mínima (°C)
+            </label>
+            <input id="tempMin" type="number" step="0.1" placeholder="2.0" class="campo">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Temperatura máxima (°C)
+            </label>
+            <input id="tempMax" type="number" step="0.1" placeholder="8.0" class="campo">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Umidade mínima (%)
+            </label>
+            <input id="humMin" type="number" step="0.1" placeholder="30" class="campo">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Umidade máxima (%)
+            </label>
+            <input id="humMax" type="number" step="0.1" placeholder="70" class="campo">
+          </div>
+
+        </div>
+
+        <label class="text-xs font-bold text-slate-500">
+          E-mail para alertas
+        </label>
+
+        <input id="emailAlerta" type="email" placeholder="tecnico@empresa.com" class="campo">
+
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+
+        <span class="text-xs font-bold text-slate-600 uppercase">
+          Parâmetros Operacionais
+        </span>
+
+        <div class="grid grid-cols-2 gap-2">
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Leitura (segundos)
+            </label>
+            <input id="freqRegistro" type="number" min="1" value="60" required class="campo">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Intervalo de alerta (minutos)
+            </label>
+            <input id="intervaloAlerta" type="number" min="1" value="15" class="campo">
+          </div>
+
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+
+        <span class="text-xs font-bold text-emerald-600 uppercase">
+          Calibração
+        </span>
+
+        <div class="grid grid-cols-2 gap-2">
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Offset de temperatura
+            </label>
+            <input id="offsetTemp" type="number" step="0.1" value="0" class="campo">
+          </div>
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Offset de umidade
+            </label>
+            <input id="offsetHum" type="number" step="0.1" value="0" class="campo">
+          </div>
+
+        </div>
+
+        <p class="text-xs text-slate-400">
+          Os offsets só serão aplicados às medições se o código do ESP32 os utilizar.
+        </p>
+
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+
+        <span class="text-xs font-bold text-rose-600 uppercase">
+          Alarme e Porta
+        </span>
+
+        <div class="grid grid-cols-2 gap-2">
+
+          <div>
+            <label class="text-xs font-bold text-slate-500">
+              Tempo máximo da porta aberta (min)
+            </label>
+            <input id="tempoMaxPortaAberta" type="number" min="1" value="3" class="campo">
+          </div>
+
+          <div class="flex items-center pt-4">
+            <label class="flex items-center gap-2 text-xs font-bold text-slate-600">
+              <input id="buzzerHabilitado" type="checkbox" checked class="w-4 h-4">
+              Buzzer habilitado
+            </label>
+          </div>
+
+        </div>
+      </div>
+
+      <div class="space-y-2 pt-2 border-t">
+
+        <span class="text-xs font-bold text-slate-400 uppercase">
+          Mapeamento Firebase
+        </span>
+
+        <label class="text-xs font-bold text-slate-500">
+          Rota temperatura
+        </label>
+        <input id="rotaTemp" required class="campo" placeholder="sensores/SENSOR_01/temp">
+
+        <label class="text-xs font-bold text-slate-500">
+          Rota umidade
+        </label>
+        <input id="rotaHum" required class="campo" placeholder="sensores/SENSOR_01/hum">
+
+        <label class="text-xs font-bold text-slate-500">
+          Rota porta
+        </label>
+        <input id="rotaPorta" required class="campo" placeholder="sensores/SENSOR_01/porta_aberta">
+
+        <label class="text-xs font-bold text-slate-500">
+          Rota último contato
+        </label>
+        <input id="rotaLastSeen" required class="campo" placeholder="sensores/SENSOR_01/last_seen">
+
+      </div>
+
+      <div class="flex gap-2 pt-3 border-t">
+
+        <button type="button" onclick="fecharModal()"
+          class="w-1/3 bg-slate-100 text-slate-700 font-bold py-3 rounded-xl">
+          Cancelar
+        </button>
+
+        <button id="salvarBtn" type="submit"
+          class="w-2/3 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 rounded-xl">
+          Salvar Configurações
+        </button>
+
+      </div>
+
+    </form>
+  </div>
+</div>
+
+<script>
+
+/* =====================================================
+   CONFIGURAÇÃO EMAILJS
+===================================================== */
+
+emailjs.init("kD4PCi1Nc4Tw0GD1e");
+
+
+/* =====================================================
+   CONFIGURAÇÃO FIREBASE
+===================================================== */
+
+const firebaseConfig = {
   apiKey: "AIzaSyCXh0pBOF4X7ERQh3NvLcClgltnoXEWlTs",
   authDomain: "panorama-48794.firebaseapp.com",
   databaseURL: "https://panorama-48794-default-rtdb.firebaseio.com",
@@ -165,553 +302,1411 @@
   appId: "1:543060637587:web:5b91b4dce3ba306b009a66"
 };
 
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.database();
-        const messaging = firebase.messaging();
+if (!firebase.apps.length) {
+  firebase.initializeApp(firebaseConfig);
+}
 
-        let editando = false;
-        let sensorEditando = null;
-        let listeners = {};
-        let cliquesLogoCount = 0;
+const auth = firebase.auth();
+const db = firebase.database();
 
-        function escapeHtml(str) {
-            if (!str) return "";
-            return String(str)
-                .replace(/&/g, "&amp;")
-                .replace(/</g, "&lt;")
-                .replace(/>/g, "&gt;")
-                .replace(/"/g, "&quot;")
-                .replace(/'/g, "&#039;");
-        }
 
-        function escapeAttr(str) {
-            if (!str) return "";
-            return String(str).replace(/"/g, "&quot;").replace(/'/g, "&#039;");
-        }
+/* =====================================================
+   VARIÁVEIS GLOBAIS
+===================================================== */
 
-        document.getElementById("logoAdmin").addEventListener("click", () => {
-            cliquesLogoCount++;
-            if (cliquesLogoCount >= 5) {
-                cliquesLogoCount = 0;
-                const btnNovo = document.getElementById("btnNovoSensor");
-                if (btnNovo.classList.contains("hidden")) {
-                    btnNovo.classList.remove("hidden");
-                    alert("Modo Administrativo Ativado: Botão '+ Novo Sensor' liberado!");
-                } else {
-                    btnNovo.classList.add("hidden");
-                    alert("Modo Administrativo Ocultado.");
-                }
-            }
-        });
+let editando = false;
+let listeners = {};
+let cliquesLogoCount = 0;
 
-        auth.onAuthStateChanged(user => {
-            if (!user) {
-                window.location.href = "index.html";
-            }
-        });
+let modoAdminAtivo = false;
 
-        function fazerLogout() {
-            auth.signOut().then(() => {
-                window.location.href = "index.html";
-            });
-        }
+const estadoAnteriorPorta = {};
+const dadosSensores = {};
+const alertasEmMemoria = {};
 
-        function dispararEmailAlerta(emailDestino, equipamento, tipoAlerta, valorDetectado) {
-            if (!emailDestino) return;
+// NOVO: armazena o último contato de cada ESP32
+const ultimoContatoSensor = {};
 
-            const templateParams = {
-                para_email: emailDestino,
-                equipamento: equipamento,
-                tipo: tipoAlerta,
-                valor: valorDetectado,
-                data: new Date().toLocaleString("pt-BR")
-            };
+// NOVO: tempo máximo sem comunicação
+const TEMPO_LIMITE_OFFLINE = 70;
 
-            emailjs.send('service_5yu2n3g', 'template_ptaj15r', templateParams)
-                .then(response => {
-                    console.log('E-mail de alerta enviado com sucesso!', response.status, response.text);
-                }, error => {
-                    console.error('Erro ao enviar e-mail de alerta:', error);
-                });
-        }
+// NOVO: intervalo de verificação da Central
+const INTERVALO_VERIFICACAO_ONLINE = 1000;
 
-        function limparListeners() {
-            Object.keys(listeners).forEach(rota => {
-                if (listeners[rota]) listeners[rota].off();
-            });
-            listeners = {};
-        }
 
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register('/sw.js')
-                    .then(reg => console.log('Service Worker registrado com sucesso!', reg))
-                    .catch(err => console.log('Falha ao registrar Service Worker:', err));
-            });
-        }
+/* =====================================================
+   FUNÇÕES AUXILIARES
+===================================================== */
 
-        document.addEventListener('DOMContentLoaded', () => {
-            if (Notification.permission === 'granted') {
-                const btnPush = document.getElementById('btnPush');
-                if (btnPush) {
-                    btnPush.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-                    btnPush.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                    btnPush.textContent = '🔔 Push Ativo';
-                }
-            }
-        });
+function escapeHtml(valor) {
+  return String(valor ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
 
-        async function solicitarPermissaoPush() {
-            try {
-                const permission = await Notification.requestPermission();
-                if (permission === 'granted') {
-                    alert('Notificações Push ativadas com sucesso neste dispositivo!');
-                    const btnPush = document.getElementById('btnPush');
-                    btnPush.classList.remove('bg-amber-500', 'hover:bg-amber-600');
-                    btnPush.classList.add('bg-emerald-600', 'hover:bg-emerald-700');
-                    btnPush.textContent = '🔔 Push Ativo';
-                } else {
-                    alert('Permissão de notificação negada pelo usuário.');
-                }
-            } catch (error) {
-                console.error("Erro ao pedir permissão de push:", error);
-            }
-        }
+function normalizarRota(rota) {
+  return String(rota || "").trim().replace(/^\/+/, "").replace(/\.json$/, "");
+}
 
-        function dispararNotificacaoLocal(titulo, mensagem) {
-            if (Notification.permission === 'granted') {
-                navigator.serviceWorker.ready.then(registration => {
-                    registration.showNotification(titulo, {
-                        body: mensagem,
-                        vibrate: [200, 100, 200]
-                    });
-                });
-            }
-        }
+function formatarIdSensor(valor) {
+  const texto = String(valor || "").trim().toUpperCase().replace(/\s+/g, "_");
+  const resultado = texto.match(/^SENSOR_(\d{1,2})$/);
 
-        db.ref("central_sensores").on("value", snapshot => {
-            limparListeners();
-            const container = document.getElementById("sensores");
-            container.innerHTML = "";
+  return resultado
+    ? `SENSOR_${resultado[1].padStart(2, "0")}`
+    : texto;
+}
 
-            if (!snapshot.exists()) {
-                container.innerHTML = `<p class="text-slate-500 col-span-full text-center">Nenhum sensor cadastrado.</p>`;
-                document.getElementById("status").textContent = "● Nenhum sensor";
-                return;
-            }
 
-            document.getElementById("status").textContent = "● Sistema conectado";
+/* =====================================================
+   CONTROLE DO MODO ADMINISTRATIVO
+===================================================== */
 
-            snapshot.forEach(item => {
-                criarCard(item.key, item.val());
-            });
-        }, error => {
-            console.error(error);
-            document.getElementById("status").textContent = "● Erro de conexão";
-        });
+function atualizarVisibilidadeAdmin() {
 
-        function criarCard(id, sensor) {
-            const container = document.getElementById("sensores");
-            let card = document.getElementById(`card-${id}`);
-            
-            if (card) {
-                verificarAlertaCaixas(id, sensor);
-                return;
-            }
+  document.querySelectorAll(".acao-admin").forEach(botao => {
+    botao.classList.toggle("hidden", !modoAdminAtivo);
+  });
 
-            card = document.createElement("div");
-            card.id = `card-${id}`;
-            card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5 transition-colors duration-300";
+  document.getElementById("btnNovoSensor").classList.toggle(
+    "hidden",
+    !modoAdminAtivo
+  );
+}
 
-            const tempMin = sensor.tempMin !== undefined && sensor.tempMin !== null ? sensor.tempMin + "°C" : "--";
-            const tempMax = sensor.tempMax !== undefined && sensor.tempMax !== null ? sensor.tempMax + "°C" : "--";
-            const humMin = sensor.humMin !== undefined && sensor.humMin !== null ? sensor.humMin + "%" : "--";
-            const humMax = sensor.humMax !== undefined && sensor.humMax !== null ? sensor.humMax + "%" : "--";
 
-            card.innerHTML = `
-                <div class="flex justify-between items-start">
-                    <div>
-                        <p class="text-xs text-slate-400 font-bold">${escapeHtml(id)}</p>
-                        <h2 class="text-lg font-bold text-slate-800">${escapeHtml(sensor.nome || "Sensor")}</h2>
-                        <p class="text-xs text-slate-500">Cliente: ${escapeHtml(sensor.clientID || "-")}</p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="editar('${escapeAttr(id)}')" title="Configurações" class="bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-blue-50 hover:text-blue-600 transition">✏️</button>
-                        <button onclick="excluir('${escapeAttr(id)}')" title="Excluir" class="bg-slate-100 px-3 py-1.5 rounded-lg hover:bg-rose-50 hover:text-rose-600 transition">🗑️</button>
-                    </div>
-                </div>
+/* =====================================================
+   SUGESTÃO AUTOMÁTICA DAS ROTAS DO ESP32
+===================================================== */
 
-                <div class="grid grid-cols-2 gap-3 mt-4">
-                    <div id="box-temp-${escapeAttr(id)}" class="bg-slate-50 rounded-xl p-3 text-center border border-slate-100 transition-colors duration-300">
-                        <span class="text-xs text-slate-500">Temperatura</span>
-                        <div id="temp-${escapeAttr(id)}" class="text-xl font-bold text-slate-800">-- °C</div>
-                        <div id="status-email-temp-${escapeAttr(id)}" class="text-[10px] text-rose-600 font-medium mt-1"></div>
-                    </div>
-                    <div id="box-hum-${escapeAttr(id)}" class="bg-slate-50 rounded-xl p-3 text-center border border-slate-100 transition-colors duration-300">
-                        <span class="text-xs text-slate-500">Umidade</span>
-                        <div id="hum-${escapeAttr(id)}" class="text-xl font-bold text-slate-800">-- %</div>
-                        <div id="status-email-hum-${escapeAttr(id)}" class="text-[10px] text-rose-600 font-medium mt-1"></div>
-                    </div>
-                </div>
+function sugerirRotas() {
 
-                <div class="mt-3 px-3 py-2 bg-slate-50 rounded-lg flex justify-between text-xs text-slate-500">
-                    <span>Faixa Ideal Temp: <strong>${tempMin}</strong> a <strong>${tempMax}</strong></span>
-                </div>
-                <div class="mt-2 px-3 py-2 bg-slate-50 rounded-lg flex justify-between text-xs text-slate-500">
-                    <span>Faixa Ideal Umid: <strong>${humMin}</strong> a <strong>${humMax}</strong></span>
-                    <span>Intervalo: <strong>${sensor.freqRegistro || 60}s</strong></span>
-                </div>
+  if (editando) return;
 
-                <div class="flex justify-between items-center mt-3 pt-3 border-t">
-                    <span id="online-${escapeAttr(id)}" class="text-sm text-slate-500">● Offline</span>
-                    <span id="seen-${escapeAttr(id)}" class="text-xs text-slate-500">--</span>
-                </div>
+  const id = formatarIdSensor(document.getElementById("id").value);
 
-                <a href="historico.html?id=${encodeURIComponent(id)}" target="_blank" class="block text-center bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl py-2.5 mt-3 transition">
-                    Ver Histórico
-                </a>
-            `;
-            container.appendChild(card);
-            
-            verificarAlertaCaixas(id, sensor);
+  if (!/^SENSOR_\d{2}$/.test(id)) return;
 
-            if (sensor.rotaTemp) {
-                ouvirRota(sensor.rotaTemp, valor => {
-                    const elemento = document.getElementById(`temp-${id}`);
-                    if (elemento && Number.isFinite(valor)) {
-                         elemento.textContent = valor.toFixed(1) + " °C";
-                         verificarAlertaCaixas(id, sensor, valor, null);
-                    }
-                });
-            }
+  document.getElementById("rotaTemp").value = `sensores/${id}/temp`;
+  document.getElementById("rotaHum").value = `sensores/${id}/hum`;
+  document.getElementById("rotaPorta").value = `sensores/${id}/porta_aberta`;
+  document.getElementById("rotaLastSeen").value = `sensores/${id}/last_seen`;
+}
 
-            if (sensor.rotaHum) {
-                ouvirRota(sensor.rotaHum, valor => {
-                    const elemento = document.getElementById(`hum-${id}`);
-                    if (elemento && Number.isFinite(valor)) {
-                        elemento.textContent = valor.toFixed(1) + " %";
-                        verificarAlertaCaixas(id, sensor, null, valor);
-                    }
-                });
-            }
+document.getElementById("id").addEventListener("input", sugerirRotas);
 
-            if (sensor.rotaLastSeen) {
-                ouvirRota(sensor.rotaLastSeen, valor => {
-                   atualizarOnline(id, valor);
-                });
-            }
-        }
 
-        function verificarAlertaCaixas(id, sensor, tempForcada = null, humForcada = null) {
-            const safeId = escapeAttr(id);
-            const tempEl = document.getElementById(`temp-${safeId}`);
-            const humEl = document.getElementById(`hum-${safeId}`);
-            const boxTemp = document.getElementById(`box-temp-${safeId}`);
-            const boxHum = document.getElementById(`box-hum-${safeId}`);
-            
-            const statusEmailTemp = document.getElementById(`status-email-temp-${safeId}`);
-            const statusEmailHum = document.getElementById(`status-email-hum-${safeId}`);
+/* =====================================================
+   DESBLOQUEIO ADMINISTRATIVO COM CINCO CLIQUES
+===================================================== */
 
-            let nomeSensor = sensor.nome || id;
-            let emailDestino = sensor.emailAlerta;
-            let intervaloMinutos = sensor.intervaloAlerta !== undefined && sensor.intervaloAlerta !== null ? Number(sensor.intervaloAlerta) : 15;
-            let intervaloMs = intervaloMinutos * 60 * 1000;
-            let agora = Date.now();
+document.getElementById("logoAdmin").addEventListener("click", () => {
 
-            let chavePushTemp = `push_enviado_${id}_temp`;
-            let chavePushHum = `push_enviado_${id}_hum`;
-            let chaveUltimoEmailTemp = `ultimo_envio_${id}_temp`;
-            let chaveUltimoEmailHum = `ultimo_envio_${id}_hum`;
+  cliquesLogoCount++;
 
-            if (tempEl && boxTemp) {
-                let textoTemp = tempEl.textContent.replace("°C", "").trim();
-                const tempVal = tempForcada !== null ? tempForcada : parseFloat(textoTemp);
-                
-                if (!isNaN(tempVal)) {
-                    const abaixoMin = sensor.tempMin !== undefined && sensor.tempMin !== null && tempVal < sensor.tempMin;
-                    const acimaMax = sensor.tempMax !== undefined && sensor.tempMax !== null && tempVal > sensor.tempMax;
+  if (cliquesLogoCount >= 5) {
 
-                    if (abaixoMin || acimaMax) {
-                        boxTemp.className = "bg-[#fff1f2] rounded-xl p-3 text-center border border-rose-300 transition-colors duration-300";
-                        
-                        let pushJaEnviado = localStorage.getItem(chavePushTemp) === "true";
-                        if (!pushJaEnviado) {
-                            localStorage.setItem(chavePushTemp, "true");
-                            dispararNotificacaoLocal(
-                                `🚨 Alerta de Temperatura: ${nomeSensor}`,
-                                `O sensor ${id} registrou ${tempVal.toFixed(1)}°C (Fora da faixa!).`
-                            );
-                        }
+    cliquesLogoCount = 0;
+    modoAdminAtivo = !modoAdminAtivo;
 
-                        let ultimoTempo = parseInt(localStorage.getItem(chaveUltimoEmailTemp)) || 0;
-                        let proximoPermitido = ultimoTempo + intervaloMs;
+    atualizarVisibilidadeAdmin();
 
-                        if (agora - ultimoTempo > intervaloMs) {
-                            localStorage.setItem(chaveUltimoEmailTemp, agora);
-                            dispararEmailAlerta(emailDestino, nomeSensor, "Temperatura Anormal", tempVal.toFixed(1) + "°C");
-                            if (statusEmailTemp) statusEmailTemp.textContent = "✉️ E-mail de alerta enviado agora!";
-                        } else {
-                            let tempoRestanteMs = proximoPermitido - agora;
-                            let minutosRestantes = Math.ceil(tempoRestanteMs / (60 * 1000));
-                            if (statusEmailTemp) {
-                                statusEmailTemp.textContent = `⏳ Próximo e-mail em ~${minutosRestantes} min`;
-                            }
-                        }
-                    } else {
-                        boxTemp.className = "bg-slate-50 rounded-xl p-3 text-center border border-slate-100 transition-colors duration-300";
-                        localStorage.setItem(chavePushTemp, "false");
-                        
-                        // CORREÇÃO: Não removemos mais o 'chaveUltimoEmailTemp' quando o valor volta ao normal.
-                        // O temporizador continua correndo para impedir novos disparos se oscilar de novo antes do tempo acabar.
-                        let ultimoTempo = parseInt(localStorage.getItem(chaveUltimoEmailTemp)) || 0;
-                        if (ultimoTempo > 0 && agora - ultimoTempo < intervaloMs) {
-                            let tempoRestanteMs = (ultimoTempo + intervaloMs) - agora;
-                            let minutosRestantes = Math.ceil(tempoRestanteMs / (60 * 1000));
-                            if (statusEmailTemp) {
-                                statusEmailTemp.textContent = `⏳ Bloqueado por mais ~${minutosRestantes} min`;
-                            }
-                        } else {
-                            localStorage.removeItem(chaveUltimoEmailTemp);
-                            if (statusEmailTemp) statusEmailTemp.textContent = "";
-                        }
-                    }
-                }
-            }
+    if (modoAdminAtivo) {
+      alert("Modo administrativo ativado.");
+    } else {
+      alert("Modo administrativo desativado.");
+    }
+  }
+});
 
-            if (humEl && boxHum) {
-                let textoHum = humEl.textContent.replace("%", "").trim();
-                const humVal = humForcada !== null ? humForcada : parseFloat(textoHum);
-                
-                if (!isNaN(humVal)) {
-                    const abaixoMin = sensor.humMin !== undefined && sensor.humMin !== null && humVal < sensor.humMin;
-                    const acimaMax = sensor.humMax !== undefined && sensor.humMax !== null && humVal > sensor.humMax;
 
-                    if (abaixoMin || acimaMax) {
-                        boxHum.className = "bg-[#fff1f2] rounded-xl p-3 text-center border border-rose-300 transition-colors duration-300";
-                        
-                        let pushJaEnviado = localStorage.getItem(chavePushHum) === "true";
-                        if (!pushJaEnviado) {
-                            localStorage.setItem(chavePushHum, "true");
-                            dispararNotificacaoLocal(
-                                `🚨 Alerta de Umidade: ${nomeSensor}`,
-                                `O sensor ${id} registrou ${humVal.toFixed(1)}% (Fora da faixa!).`
-                            );
-                        }
+/* =====================================================
+   AUTENTICAÇÃO
+===================================================== */
 
-                        let ultimoTempo = parseInt(localStorage.getItem(chaveUltimoEmailHum)) || 0;
-                        let proximoPermitido = ultimoTempo + intervaloMs;
+auth.onAuthStateChanged(user => {
 
-                        if (agora - ultimoTempo > intervaloMs) {
-                            localStorage.setItem(chaveUltimoEmailHum, agora);
-                            dispararEmailAlerta(emailDestino, nomeSensor, "Umidade Anormal", humVal.toFixed(1) + "%");
-                            if (statusEmailHum) statusEmailHum.textContent = "✉️ E-mail de alerta enviado agora!";
-                        } else {
-                            let tempoRestanteMs = proximoPermitido - agora;
-                            let minutosRestantes = Math.ceil(tempoRestanteMs / (60 * 1000));
-                            if (statusEmailHum) {
-                                statusEmailHum.textContent = `⏳ Próximo e-mail em ~${minutosRestantes} min`;
-                            }
-                        }
-                    } else {
-                        boxHum.className = "bg-slate-50 rounded-xl p-3 text-center border border-slate-100 transition-colors duration-300";
-                        localStorage.setItem(chavePushHum, "false");
-                        
-                        // CORREÇÃO: Mantém o bloqueio do temporizador mesmo se a umidade voltar ao normal.
-                        let ultimoTempo = parseInt(localStorage.getItem(chaveUltimoEmailHum)) || 0;
-                        if (ultimoTempo > 0 && agora - ultimoTempo < intervaloMs) {
-                            let tempoRestanteMs = (ultimoTempo + intervaloMs) - agora;
-                            let minutosRestantes = Math.ceil(tempoRestanteMs / (60 * 1000));
-                            if (statusEmailHum) {
-                                statusEmailHum.textContent = `⏳ Bloqueado por mais ~${minutosRestantes} min`;
-                            }
-                        } else {
-                            localStorage.removeItem(chaveUltimoEmailHum);
-                            if (statusEmailHum) statusEmailHum.textContent = "";
-                        }
-                    }
-                }
-            }
-        }
+  if (!user) {
+    window.location.href = "index.html";
+  }
 
-        function ouvirRota(rota, callback) {
-            if (!rota) return;
-            const rotaLimpa = normalizarRota(rota);
-            const ref = db.ref(rotaLimpa);
+});
 
-            ref.on("value", snapshot => {
-                const valor = Number(snapshot.val());
-                callback(valor);
-            });
+function fazerLogout() {
 
-            listeners[rotaLimpa] = ref;
-        }
+  auth.signOut().then(() => {
 
-        function normalizarRota(rota) {
-            if (!rota) return "";
-            rota = String(rota).trim();
-            if (rota.startsWith("/")) rota = rota.substring(1);
-            return rota;
-        }
+    window.location.href = "index.html";
 
-        function atualizarOnline(id, timestamp) {
-    if (!Number.isFinite(Number(timestamp))) return;
-    let ts = Number(timestamp);
-    
-    // Converte milissegundos para segundos se necessário
-    if (ts > 100000000000) ts = Math.floor(ts / 1000);
+  }).catch(console.error);
 
-    const agoraSegundos = Math.floor(Date.now() / 1000);
-    const segundosDiferenca = agoraSegundos - ts;
+}
 
-    const elemento = document.getElementById(`online-${id}`);
-    const hora = document.getElementById(`seen-${id}`);
+
+/* =====================================================
+   LISTENERS FIREBASE
+===================================================== */
+
+function limparListeners() {
+
+  Object.values(listeners).forEach(ref => {
+
+    try {
+      ref.off();
+    } catch (erro) {
+      console.warn(erro);
+    }
+
+  });
+
+  listeners = {};
+
+}
+
+function ouvirRota(rota, callback) {
+
+  const caminho = normalizarRota(rota);
+
+  if (!caminho) return;
+
+  if (listeners[caminho]) {
+    listeners[caminho].off();
+  }
+
+  const referencia = db.ref(caminho);
+
+  referencia.on("value", snapshot => {
+
+    if (snapshot.exists()) {
+      callback(snapshot.val());
+    }
+
+  }, erro => {
+
+    console.error("Erro lendo Firebase:", caminho, erro);
+
+  });
+
+  listeners[caminho] = referencia;
+
+}
+
+
+/* =====================================================
+   ALERTAS POR E-MAIL
+===================================================== */
+
+function dispararEmailAlerta(emailDestino, equipamento, tipoAlerta, valorDetectado) {
+
+  if (!emailDestino) return;
+
+  emailjs.send("service_v0ldsah", "template_hnmc8uf", {
+
+    para_email: emailDestino,
+    equipamento: equipamento,
+    tipo: tipoAlerta,
+    valor: valorDetectado,
+    data: new Date().toLocaleString("pt-BR")
+
+  }).then(resposta => {
+
+    console.log("E-mail solicitado:", resposta.status);
+
+  }).catch(erro => {
+
+    console.error("Erro EmailJS:", erro);
+
+  });
+
+}
+
+
+/* =====================================================
+   NOTIFICAÇÃO LOCAL DO NAVEGADOR
+===================================================== */
+
+function dispararNotificacaoLocal(titulo, mensagem) {
+
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+
+  try {
+
+    new Notification(titulo, { body: mensagem });
+
+  } catch (erro) {
+
+    console.warn("Não foi possível exibir a notificação:", erro);
+
+  }
+
+}
+
+async function solicitarPermissaoPush() {
+
+  if (!("Notification" in window)) {
+
+    alert("Este navegador não oferece suporte a notificações.");
+    return;
+
+  }
+
+  const permissao = await Notification.requestPermission();
+
+  if (permissao === "granted") {
+
+    const botao = document.getElementById("btnPush");
+
+    botao.textContent = "🔔 Notificações Ativas";
+    botao.className = "bg-emerald-600 text-white font-bold px-3 py-2 rounded-xl text-xs";
+
+  } else {
+
+    alert("Permissão de notificação não concedida.");
+
+  }
+
+}
+
+
+/*
+ * As notificações locais e os e-mails deste HTML
+ * dependem de a página estar aberta e conectada.
+ *
+ * Isso não configura, por si só, push em segundo plano.
+ */
+
+
+/* =====================================================
+   CARREGAMENTO DOS SENSORES
+===================================================== */
+
+db.ref("central_sensores").on("value", snapshot => {
+
+  limparListeners();
+
+  const container = document.getElementById("sensores");
+
+  container.innerHTML = "";
+
+  Object.keys(dadosSensores).forEach(chave => delete dadosSensores[chave]);
+
+  if (!snapshot.exists()) {
+
+    container.innerHTML =
+      '<p class="text-slate-500 col-span-full text-center">Nenhum sensor cadastrado.</p>';
+
+    document.getElementById("status").textContent = "● Nenhum sensor";
+
+    return;
+
+  }
+
+  document.getElementById("status").textContent = "● Sistema conectado";
+
+  snapshot.forEach(item => {
+
+    dadosSensores[item.key] = item.val();
+
+    criarCard(item.key, item.val());
+
+  });
+
+}, erro => {
+
+  console.error("Erro central_sensores:", erro);
+
+  document.getElementById("status").textContent = "● Erro de conexão";
+
+});
+
+
+/* =====================================================
+   CRIAÇÃO DO CARTÃO
+===================================================== */
+
+function criarCard(id, sensor) {
+
+  const container = document.getElementById("sensores");
+
+  const card = document.createElement("div");
+
+  const tempMin = sensor.tempMin ?? "--";
+  const tempMax = sensor.tempMax ?? "--";
+  const humMin = sensor.humMin ?? "--";
+  const humMax = sensor.humMax ?? "--";
+
+  const frequencia = Number(sensor.freqRegistro) || 60;
+
+  card.id = `card-${id}`;
+
+  card.className = "bg-white rounded-2xl border border-slate-200 shadow-sm p-5";
+
+  card.innerHTML = `
+
+    <div class="flex justify-between items-start">
+
+      <div>
+
+        <p class="text-xs text-slate-400 font-bold">
+          ${escapeHtml(id)}
+        </p>
+
+        <h2 class="text-lg font-bold text-slate-800">
+          ${escapeHtml(sensor.nome || "Sensor")}
+        </h2>
+
+        <p class="text-xs text-slate-500">
+          Cliente: ${escapeHtml(sensor.clientID || "-")}
+        </p>
+
+      </div>
+
+      <div class="flex gap-2">
+
+        <button onclick="editar('${escapeHtml(id)}')"
+          class="acao-admin hidden bg-slate-100 px-3 py-1.5 rounded-lg"
+          title="Editar configurações">
+          ✏️
+        </button>
+
+        <button onclick="excluir('${escapeHtml(id)}')"
+          class="acao-admin hidden bg-slate-100 px-3 py-1.5 rounded-lg"
+          title="Excluir sensor da central">
+          🗑️
+        </button>
+
+        <button onclick="apagarHistoricoSensor('${escapeHtml(id)}')"
+          class="acao-admin hidden bg-rose-100 text-rose-700 px-3 py-1.5 rounded-lg text-xs font-bold"
+          title="Apagar somente o histórico deste sensor">
+          🧹
+        </button>
+
+      </div>
+
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mt-4">
+
+      <div id="box-temp-${id}" class="bg-slate-50 rounded-xl p-3 text-center border">
+
+        <span class="text-xs text-slate-500">Temperatura</span>
+
+        <div id="temp-${id}" class="text-xl font-bold">
+          -- °C
+        </div>
+
+        <div id="status-email-temp-${id}" class="text-[10px] text-rose-600 mt-1"></div>
+
+      </div>
+
+      <div id="box-hum-${id}" class="bg-slate-50 rounded-xl p-3 text-center border">
+
+        <span class="text-xs text-slate-500">Umidade</span>
+
+        <div id="hum-${id}" class="text-xl font-bold">
+          -- %
+        </div>
+
+        <div id="status-email-hum-${id}" class="text-[10px] text-rose-600 mt-1"></div>
+
+      </div>
+
+    </div>
+
+    <div id="box-porta-${id}" class="mt-3 bg-slate-50 rounded-xl p-3 border flex justify-between items-center px-4">
+
+      <div>
+
+        <span class="text-xs text-slate-500">Status da Porta</span>
+
+        <div id="porta-${id}" class="text-sm font-bold text-slate-700">
+          Aguardando leitura...
+        </div>
+
+        <div id="tempo-porta-${id}" class="text-xs text-slate-500"></div>
+
+      </div>
+
+      <button id="btn-mute-${id}" onclick="silenciarAlarmeBuzzer('${escapeHtml(id)}')"
+        class="hidden bg-rose-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg">
+        🔕 Silenciar
+      </button>
+
+    </div>
+
+    <div class="mt-3 px-3 py-2 bg-slate-50 rounded-lg text-xs text-slate-500">
+
+      Faixa ideal de temperatura:
+
+      <strong>${escapeHtml(tempMin)}°C</strong>
+      a
+      <strong>${escapeHtml(tempMax)}°C</strong>
+
+    </div>
+
+    <div class="mt-2 px-3 py-2 bg-slate-50 rounded-lg flex justify-between text-xs text-slate-500">
+
+      <span>
+        Faixa ideal de umidade:
+
+        <strong>${escapeHtml(humMin)}%</strong>
+        a
+        <strong>${escapeHtml(humMax)}%</strong>
+      </span>
+
+      <span>
+        Intervalo: <strong>${frequencia}s</strong>
+      </span>
+
+    </div>
+
+    <div class="flex justify-between items-center mt-3 pt-3 border-t">
+
+      <span id="online-${id}" class="text-sm text-rose-600 font-bold">
+        ● Offline
+      </span>
+
+      <span id="seen-${id}" class="text-xs text-slate-500">
+        --
+      </span>
+
+    </div>
+
+    <a href="historico.html?id=${encodeURIComponent(id)}"
+      class="block text-center bg-blue-50 hover:bg-blue-100 text-blue-600 font-bold rounded-xl py-2.5 mt-3">
+      Ver Histórico
+    </a>
+
+  `;
+
+  container.appendChild(card);
+
+  atualizarVisibilidadeAdmin();
+
+
+  /* TEMPERATURA */
+
+  ouvirRota(sensor.rotaTemp || `sensores/${id}/temp`, valor => {
+
+    const elemento = document.getElementById(`temp-${id}`);
+
+    const numero = Number(valor);
+
+    if (elemento && Number.isFinite(numero)) {
+
+      elemento.textContent = numero.toFixed(1) + " °C";
+
+      verificarAlertaCaixas(id, sensor, numero, null);
+
+    }
+
+  });
+
+
+  /* UMIDADE */
+
+  ouvirRota(sensor.rotaHum || `sensores/${id}/hum`, valor => {
+
+    const elemento = document.getElementById(`hum-${id}`);
+
+    const numero = Number(valor);
+
+    if (elemento && Number.isFinite(numero)) {
+
+      elemento.textContent = numero.toFixed(1) + " %";
+
+      verificarAlertaCaixas(id, sensor, null, numero);
+
+    }
+
+  });
+
+
+  /* ROTA DA PORTA */
+
+  ouvirRota(sensor.rotaPorta || `sensores/${id}/porta_aberta`, valor => {
+
+    atualizarStatusPorta(id, sensor, valor);
+
+  });
+
+
+  /* ÚLTIMO CONTATO */
+
+  ouvirRota(sensor.rotaLastSeen || `sensores/${id}/last_seen`, valor => {
+
+    atualizarOnline(id, valor);
+
+  });
+
+
+  /* TEMPO DE PORTA ABERTA */
+
+  ouvirRota(`sensores/${id}/tempo_aberta_segs`, valor => {
+
+    const elemento = document.getElementById(`tempo-porta-${id}`);
 
     if (!elemento) return;
 
-    // TOLERÂNCIA AJUSTADA: 75 segundos (60s do envio do ESP32 + 15s de margem de rede móvel)
-    const estaOnline = segundosDiferenca >= -10 && segundosDiferenca <= 75;
+    const segundos = Number(valor);
 
-    if (estaOnline) {
-        elemento.textContent = "● Online";
-        elemento.className = "text-sm text-emerald-600 font-bold";
+    if (Number.isFinite(segundos) && segundos > 0) {
+
+      const minutos = Math.floor(segundos / 60);
+
+      const resto = Math.floor(segundos % 60);
+
+      elemento.textContent = `Aberta há ${minutos} min ${resto} s`;
+
     } else {
-        elemento.textContent = "● Offline";
-        elemento.className = "text-sm text-rose-600 font-bold";
+
+      elemento.textContent = "";
+
     }
 
-    if (hora) {
-        hora.textContent = new Date(ts * 1000).toLocaleTimeString("pt-BR");
-    }
+  });
+
 }
 
-// ATUALIZAÇÃO EM TEMPO REAL: Checa os status a cada 5 segundos na tela
-setInterval(() => {
-    Object.keys(listeners).forEach(rota => {
-        if (rota.includes("last_seen")) {
-            db.ref(rota).once("value", snapshot => {
-                const ts = snapshot.val();
-                // Extrai o ID do sensor a partir da rota
-                const sensorID = rota.replace("last_seen", "").replace("/", "") || "SENSOR_01";
-                if (ts) atualizarOnline(sensorID, ts);
-            });
-        }
+
+/* =====================================================
+   APAGAR SOMENTE O HISTÓRICO DO SENSOR SELECIONADO
+===================================================== */
+
+function apagarHistoricoSensor(id) {
+
+  if (!modoAdminAtivo) {
+
+    alert("Ative o modo administrativo clicando cinco vezes no nome CENTRAL NEWENERGY.");
+
+    return;
+
+  }
+
+  const primeiraConfirmacao = confirm(
+
+    `ATENÇÃO!\n\nDeseja realmente apagar TODO o histórico do ${id}?\n\n` +
+    "Serão excluídos somente os dados históricos armazenados em historico/" + id + ".\n\n" +
+    "As configurações e os outros sensores serão preservados."
+
+  );
+
+  if (!primeiraConfirmacao) return;
+
+  const segundaConfirmacao = confirm(
+
+    `CONFIRMAÇÃO FINAL\n\n` +
+    `Você está prestes a apagar permanentemente o histórico do ${id}.\n\n` +
+    "Esta operação não poderá ser desfeita.\n\nDeseja continuar?"
+
+  );
+
+  if (!segundaConfirmacao) return;
+
+  db.ref(`historico/${id}`).remove()
+
+    .then(() => {
+
+      alert(`Histórico do ${id} apagado com sucesso.\n\nOs outros sensores não foram alterados.`);
+
+    })
+
+    .catch(erro => {
+
+      console.error("Erro ao apagar histórico:", erro);
+
+      alert(
+        "Não foi possível apagar o histórico.\n\n" +
+        "Verifique a conexão e as permissões do Firebase."
+      );
+
     });
-}, 5000);
 
-        function abrirModal() {
-            editando = false;
-            sensorEditando = null;
-            document.getElementById("titulo").textContent = "Novo Sensor";
-            document.querySelector("form").reset();
-            const campoId = document.getElementById("id");
-            campoId.disabled = false;
-            campoId.oninput = sugerirRotas;
-            document.getElementById("modal").classList.remove("hidden");
+}
+
+
+/* =====================================================
+   INTERPRETAÇÃO DO ESTADO DA PORTA
+===================================================== */
+
+function atualizarStatusPorta(id, sensor, valor) {
+
+  const elemento = document.getElementById(`porta-${id}`);
+
+  const caixa = document.getElementById(`box-porta-${id}`);
+
+  const botao = document.getElementById(`btn-mute-${id}`);
+
+  if (!elemento || !caixa) return;
+
+  let aberta = false;
+
+  if (typeof valor === "boolean") {
+
+    aberta = valor;
+
+  } else if (typeof valor === "number") {
+
+    aberta = valor === 1;
+
+  } else {
+
+    const texto = String(valor).trim().toLowerCase();
+
+    aberta = ["true", "1", "aberta", "open", "aberto"].includes(texto);
+
+  }
+
+  const anterior = estadoAnteriorPorta[id];
+
+  if (aberta) {
+
+    elemento.textContent = "🚪 ABERTA";
+
+    elemento.className = "text-sm font-bold text-rose-600";
+
+    caixa.className =
+      "mt-3 bg-rose-50 rounded-xl p-3 border border-rose-300 flex justify-between items-center px-4";
+
+    if (botao) {
+
+      botao.classList.remove("hidden");
+
+      atualizarBotaoBuzzer(id);
+
+    }
+
+    if (anterior === false || anterior === undefined) {
+
+      dispararNotificacaoLocal(
+        `🚨 Porta aberta: ${sensor.nome || id}`,
+        `A porta do sensor ${id} foi detectada como aberta.`
+      );
+
+    }
+
+  } else {
+
+    elemento.textContent = "🔒 Fechada";
+
+    elemento.className = "text-sm font-bold text-emerald-600";
+
+    caixa.className =
+      "mt-3 bg-emerald-50 rounded-xl p-3 border border-emerald-200 flex justify-between items-center px-4";
+
+    if (botao) botao.classList.add("hidden");
+
+  }
+
+  estadoAnteriorPorta[id] = aberta;
+
+}
+
+
+/* =====================================================
+   BOTÃO PARA SILENCIAR OU REATIVAR BUZZER
+===================================================== */
+
+function atualizarBotaoBuzzer(id) {
+
+  const botao = document.getElementById(`btn-mute-${id}`);
+
+  if (!botao) return;
+
+  db.ref(`central_sensores/${id}/silenciarAlarme`).once("value")
+
+    .then(snapshot => {
+
+      if (snapshot.val() === true) {
+
+        botao.textContent = "🔔 Reativar";
+
+        botao.className =
+          "bg-slate-500 text-white font-bold text-xs px-3 py-1.5 rounded-lg";
+
+      } else {
+
+        botao.textContent = "🔕 Silenciar";
+
+        botao.className =
+          "bg-rose-600 text-white font-bold text-xs px-3 py-1.5 rounded-lg";
+
+      }
+
+    })
+
+    .catch(console.error);
+
+}
+
+
+function silenciarAlarmeBuzzer(id) {
+
+  const referencia = db.ref(`central_sensores/${id}/silenciarAlarme`);
+
+  referencia.once("value")
+
+    .then(snapshot => referencia.set(snapshot.val() !== true))
+
+    .then(() => atualizarBotaoBuzzer(id))
+
+    .catch(erro => {
+
+      console.error(erro);
+
+      alert("Não foi possível alterar o buzzer. Verifique a conexão e as permissões do Firebase.");
+
+    });
+
+}
+
+
+/* =====================================================
+   NOVO SISTEMA ONLINE/OFFLINE
+===================================================== */
+
+/*
+   Esta função é executada quando o Firebase
+   recebe uma atualização do last_seen.
+
+   Ela apenas registra o último contato.
+   A verificação de ONLINE/OFFLINE é independente.
+*/
+
+function atualizarOnline(id, timestamp) {
+
+  let ts = Number(timestamp);
+
+  if (!Number.isFinite(ts) || ts <= 0) return;
+
+  // Aceita timestamp em milissegundos ou segundos
+
+  if (ts > 100000000000) {
+
+    ts = Math.floor(ts / 1000);
+
+  }
+
+  // Guarda o último contato recebido
+
+  ultimoContatoSensor[id] = ts;
+
+  // Atualiza imediatamente o cartão
+
+  verificarEstadoOnline(id);
+
+}
+
+
+/*
+   Verifica se o sensor continua comunicando.
+
+   Não depende de novas mensagens do Firebase.
+*/
+
+function verificarEstadoOnline(id) {
+
+  const ts = ultimoContatoSensor[id];
+
+  const elemento = document.getElementById(`online-${id}`);
+
+  const hora = document.getElementById(`seen-${id}`);
+
+  if (!elemento || !hora) return;
+
+  if (!ts) {
+
+    elemento.textContent = "● Offline";
+
+    elemento.className = "text-sm text-rose-600 font-bold";
+
+    return;
+
+  }
+
+  const agora = Math.floor(Date.now() / 1000);
+
+  const diferenca = agora - ts;
+
+
+  // ONLINE: último contato dentro do limite configurado
+
+  if (
+    diferenca >= -10 &&
+    diferenca <= TEMPO_LIMITE_OFFLINE
+  ) {
+
+    elemento.textContent = "● Online";
+
+    elemento.className = "text-sm text-emerald-600 font-bold";
+
+  } else {
+
+    // OFFLINE: ultrapassou o tempo máximo sem comunicação
+
+    elemento.textContent = "● Offline";
+
+    elemento.className = "text-sm text-rose-600 font-bold";
+
+  }
+
+
+  // Exibe o horário do último contato recebido
+
+  hora.textContent = new Date(ts * 1000).toLocaleTimeString("pt-BR");
+
+}
+
+
+/*
+   MONITORAMENTO AUTOMÁTICO
+
+   A cada 1 segundo a Central verifica todos
+   os sensores cadastrados.
+
+   Assim, mesmo que o Firebase não envie
+   uma nova atualização, o status muda
+   automaticamente para OFFLINE.
+*/
+
+setInterval(() => {
+
+  Object.keys(ultimoContatoSensor).forEach(id => {
+
+    verificarEstadoOnline(id);
+
+  });
+
+}, INTERVALO_VERIFICACAO_ONLINE);
+
+
+/* =====================================================
+   VERIFICAÇÃO DOS LIMITES E ALERTAS
+===================================================== */
+
+function verificarAlertaCaixas(
+  id,
+  sensor,
+  temperaturaForcada = null,
+  umidadeForcada = null
+) {
+
+  const agora = Date.now();
+
+  const intervalo =
+    Math.max(1, Number(sensor.intervaloAlerta) || 15) * 60000;
+
+  const email = sensor.emailAlerta;
+
+  const nome = sensor.nome || id;
+
+
+  function verificar(tipo, valor, minimo, maximo, unidade) {
+
+    if (valor === null || !Number.isFinite(Number(valor))) return;
+
+    const caixa = document.getElementById(`box-${tipo}-${id}`);
+
+    const status = document.getElementById(`status-email-${tipo}-${id}`);
+
+    if (!caixa) return;
+
+    const fora =
+
+      (minimo !== null && minimo !== undefined &&
+        Number(valor) < Number(minimo)) ||
+
+      (maximo !== null && maximo !== undefined &&
+        Number(valor) > Number(maximo));
+
+
+    const chaveAlerta = `ne_alert_${id}_${tipo}`;
+
+    const chaveEmail = `ne_email_${id}_${tipo}`;
+
+
+    if (fora) {
+
+      caixa.className =
+        "bg-rose-50 rounded-xl p-3 text-center border border-rose-300";
+
+
+      if (!alertasEmMemoria[chaveAlerta]) {
+
+        alertasEmMemoria[chaveAlerta] = true;
+
+        dispararNotificacaoLocal(
+
+          `🚨 Alerta ${tipo === "temp" ? "de temperatura" : "de umidade"}: ${nome}`,
+
+          `${id}: ${Number(valor).toFixed(1)}${unidade}, fora da faixa configurada.`
+
+        );
+
+      }
+
+
+      const ultimoEmail =
+        Number(localStorage.getItem(chaveEmail)) || 0;
+
+
+      if (agora - ultimoEmail >= intervalo) {
+
+        localStorage.setItem(chaveEmail, String(agora));
+
+        dispararEmailAlerta(
+
+          email,
+
+          nome,
+
+          tipo === "temp"
+            ? "Temperatura Anormal"
+            : "Umidade Anormal",
+
+          Number(valor).toFixed(1) + unidade
+
+        );
+
+        if (status) {
+          status.textContent = "✉️ Solicitação de e-mail realizada";
         }
 
-        function sugerirRotas() {
-            if (editando) return;
-            const valor = document.getElementById("id").value.trim().toUpperCase();
-            const resultado = valor.match(/^SENSOR_(\d+)$/);
-            if (!resultado) return;
+      } else if (status) {
 
-            const numero = Number(resultado[1]);
-            if (numero === 1) {
-                document.getElementById("rotaTemp").value = "/temp";
-                document.getElementById("rotaHum").value = "/hum";
-                document.getElementById("rotaLastSeen").value = "/last_seen";
-            } else {
-                document.getElementById("rotaTemp").value = `/temp${numero}`;
-                document.getElementById("rotaHum").value = `/hum${numero}`;
-                document.getElementById("rotaLastSeen").value = `/last_seen${numero}`;
-            }
-        }
+        const restante =
+          Math.ceil((intervalo - (agora - ultimoEmail)) / 60000);
 
-        function fecharModal() {
-            document.getElementById("modal").classList.add("hidden");
-        }
+        status.textContent = `⏳ Próximo e-mail em ~${restante} min`;
 
-        function editar(id) {
-            db.ref(`central_sensores/${id}`).once("value").then(snapshot => {
-                if (!snapshot.exists()) {
-                    alert("Sensor não encontrado.");
-                    return;
-                }
+      }
 
-                const s = snapshot.val();
-                editando = true;
-                sensorEditando = id;
+    } else {
 
-                document.getElementById("titulo").textContent = "Painel de Serviço: " + id;
-                const campoId = document.getElementById("id");
-                campoId.value = id;
-                campoId.disabled = true;
-                campoId.oninput = null;
+      caixa.className =
+        "bg-slate-50 rounded-xl p-3 text-center border border-slate-100";
 
-                document.getElementById("nome").value = s.nome || "";
-                document.getElementById("cliente").value = s.clientID || "";
-                document.getElementById("tempMin").value = s.tempMin !== undefined && s.tempMin !== null ? s.tempMin : "";
-                document.getElementById("tempMax").value = s.tempMax !== undefined && s.tempMax !== null ? s.tempMax : "";
-                document.getElementById("humMin").value = s.humMin !== undefined && s.humMin !== null ? s.humMin : "";
-                document.getElementById("humMax").value = s.humMax !== undefined && s.humMax !== null ? s.humMax : "";
-                document.getElementById("emailAlerta").value = s.emailAlerta || "";
-                document.getElementById("freqRegistro").value = s.freqRegistro || "";
-                document.getElementById("intervaloAlerta").value = s.intervaloAlerta || "";
-                document.getElementById("rotaTemp").value = s.rotaTemp || "";
-                document.getElementById("rotaHum").value = s.rotaHum || "";
-                document.getElementById("rotaLastSeen").value = s.rotaLastSeen || "";
+      alertasEmMemoria[chaveAlerta] = false;
 
-                document.getElementById("modal").classList.remove("hidden");
-            }).catch(error => {
-                console.error(error);
-                alert("Erro ao carregar dados do sensor.");
-            });
-        }
+      if (status) status.textContent = "";
 
-        function salvar(event) {
-            event.preventDefault();
-            const id = document.getElementById("id").value.trim().toUpperCase().replace(/\s+/g, "_");
+    }
 
-            const dados = {
-                nome: document.getElementById("nome").value.trim(),
-                clientID: document.getElementById("cliente").value.trim(),
-                tempMin: parseFloat(document.getElementById("tempMin").value) || null,
-                tempMax: parseFloat(document.getElementById("tempMax").value) || null,
-                humMin: parseFloat(document.getElementById("humMin").value) || null,
-                humMax: parseFloat(document.getElementById("humMax").value) || null,
-                emailAlerta: document.getElementById("emailAlerta").value.trim(),
-                freqRegistro: parseInt(document.getElementById("freqRegistro").value) || 60,
-                intervaloAlerta: parseInt(document.getElementById("intervaloAlerta").value) || 15,
-                rotaTemp: document.getElementById("rotaTemp").value.trim(),
-                rotaHum: document.getElementById("rotaHum").value.trim(),
-                rotaLastSeen: document.getElementById("rotaLastSeen").value.trim()
-            };
+  }
 
-            db.ref(`central_sensores/${id}`).update(dados).then(() => {
-                alert(editando ? "Configurações atualizadas!" : "Sensor cadastrado!");
-                fecharModal();
-            }).catch(error => {
-                console.error(error);
-                alert("Erro ao salvar alterações no Firebase.");
-            });
-        }
 
-        function excluir(id) {
-            if (!confirm(`Deseja excluir permanentemente o ${id}?`)) return;
+  const textoTemp =
+    document.getElementById(`temp-${id}`)?.textContent || "";
 
-            db.ref(`central_sensores/${id}`).remove().then(() => {
-                alert("Sensor removido com sucesso.");
-            }).catch(error => {
-                console.error(error);
-                alert("Erro ao excluir.");
-            });
-        }
-    </script>
+  const textoHum =
+    document.getElementById(`hum-${id}`)?.textContent || "";
+
+
+  const temperatura = temperaturaForcada !== null
+    ? temperaturaForcada
+    : parseFloat(textoTemp);
+
+
+  const umidade = umidadeForcada !== null
+    ? umidadeForcada
+    : parseFloat(textoHum);
+
+
+  verificar("temp", temperatura, sensor.tempMin, sensor.tempMax, "°C");
+
+  verificar("hum", umidade, sensor.humMin, sensor.humMax, "%");
+
+}
+
+
+/* =====================================================
+   ABRIR FORMULÁRIO DE CADASTRO
+===================================================== */
+
+function abrirModal() {
+
+  if (!modoAdminAtivo) {
+
+    alert("Ative o modo administrativo clicando cinco vezes no nome CENTRAL NEWENERGY.");
+
+    return;
+
+  }
+
+  editando = false;
+
+  document.getElementById("formSensor").reset();
+
+  document.getElementById("titulo").textContent = "Novo Sensor";
+
+  document.getElementById("id").disabled = false;
+
+  document.getElementById("freqRegistro").value = 60;
+
+  document.getElementById("intervaloAlerta").value = 15;
+
+  document.getElementById("offsetTemp").value = 0;
+
+  document.getElementById("offsetHum").value = 0;
+
+  document.getElementById("tempoMaxPortaAberta").value = 3;
+
+  document.getElementById("buzzerHabilitado").checked = true;
+
+
+  ["rotaTemp", "rotaHum", "rotaPorta", "rotaLastSeen"].forEach(campo => {
+
+    document.getElementById(campo).value = "";
+
+  });
+
+
+  document.getElementById("modal").classList.remove("hidden");
+
+}
+
+
+function fecharModal() {
+
+  document.getElementById("modal").classList.add("hidden");
+
+}
+
+
+/* =====================================================
+   EDITAR SENSOR
+===================================================== */
+
+function editar(id) {
+
+  if (!modoAdminAtivo) {
+
+    alert("Ative o modo administrativo clicando cinco vezes no nome CENTRAL NEWENERGY.");
+
+    return;
+
+  }
+
+  db.ref(`central_sensores/${id}`).once("value")
+
+    .then(snapshot => {
+
+      if (!snapshot.exists()) {
+
+        alert("Sensor não encontrado.");
+
+        return;
+
+      }
+
+      const sensor = snapshot.val();
+
+      editando = true;
+
+      document.getElementById("titulo").textContent =
+        "Configurações: " + id;
+
+      document.getElementById("id").value = id;
+
+      document.getElementById("id").disabled = true;
+
+
+      const valores = {
+
+        nome: sensor.nome || "",
+
+        cliente: sensor.clientID || "",
+
+        tempMin: sensor.tempMin ?? "",
+
+        tempMax: sensor.tempMax ?? "",
+
+        humMin: sensor.humMin ?? "",
+
+        humMax: sensor.humMax ?? "",
+
+        emailAlerta: sensor.emailAlerta || "",
+
+        freqRegistro: sensor.freqRegistro ?? 60,
+
+        intervaloAlerta: sensor.intervaloAlerta ?? 15,
+
+        offsetTemp: sensor.offsetTemp ?? 0,
+
+        offsetHum: sensor.offsetHum ?? 0,
+
+        tempoMaxPortaAberta: sensor.tempoMaxPortaAberta ?? 3,
+
+        rotaTemp: sensor.rotaTemp || `sensores/${id}/temp`,
+
+        rotaHum: sensor.rotaHum || `sensores/${id}/hum`,
+
+        rotaPorta: sensor.rotaPorta || `sensores/${id}/porta_aberta`,
+
+        rotaLastSeen: sensor.rotaLastSeen || `sensores/${id}/last_seen`
+
+      };
+
+
+      Object.entries(valores).forEach(([campo, valor]) => {
+
+        document.getElementById(campo).value = valor;
+
+      });
+
+
+      document.getElementById("buzzerHabilitado").checked =
+        sensor.buzzerHabilitado !== false;
+
+
+      document.getElementById("modal").classList.remove("hidden");
+
+    })
+
+    .catch(erro => {
+
+      console.error(erro);
+
+      alert("Erro ao carregar os dados do sensor.");
+
+    });
+
+}
+
+
+/* =====================================================
+   SALVAR CONFIGURAÇÕES
+===================================================== */
+
+function campoNum(id) {
+
+  const valor = document.getElementById(id).value.trim();
+
+  if (valor === "") return null;
+
+  const numero = Number(valor);
+
+  return Number.isFinite(numero) ? numero : null;
+
+}
+
+
+function salvar(event) {
+
+  event.preventDefault();
+
+  if (!modoAdminAtivo) {
+
+    alert("Modo administrativo desativado. Não é possível salvar alterações.");
+
+    return;
+
+  }
+
+
+  const id = formatarIdSensor(document.getElementById("id").value);
+
+
+  if (!/^SENSOR_\d{2}$/.test(id)) {
+
+    alert("Use o formato SENSOR_01, SENSOR_02, SENSOR_03 etc., conforme o código do ESP32.");
+
+    return;
+
+  }
+
+
+  const dados = {
+
+    nome: document.getElementById("nome").value.trim(),
+
+    clientID: document.getElementById("cliente").value.trim(),
+
+
+    tempMin: campoNum("tempMin"),
+
+    tempMax: campoNum("tempMax"),
+
+    humMin: campoNum("humMin"),
+
+    humMax: campoNum("humMax"),
+
+
+    emailAlerta: document.getElementById("emailAlerta").value.trim(),
+
+
+    freqRegistro: Math.max(
+
+      1,
+
+      parseInt(document.getElementById("freqRegistro").value, 10) || 60
+
+    ),
+
+
+    intervaloAlerta: Math.max(
+
+      1,
+
+      parseInt(document.getElementById("intervaloAlerta").value, 10) || 15
+
+    ),
+
+
+    offsetTemp: campoNum("offsetTemp") ?? 0,
+
+    offsetHum: campoNum("offsetHum") ?? 0,
+
+
+    tempoMaxPortaAberta: Math.max(
+
+      1,
+
+      parseInt(document.getElementById("tempoMaxPortaAberta").value, 10) || 3
+
+    ),
+
+
+    buzzerHabilitado:
+      document.getElementById("buzzerHabilitado").checked,
+
+
+    rotaTemp: normalizarRota(
+      document.getElementById("rotaTemp").value
+    ),
+
+    rotaHum: normalizarRota(
+      document.getElementById("rotaHum").value
+    ),
+
+    rotaPorta: normalizarRota(
+      document.getElementById("rotaPorta").value
+    ),
+
+    rotaLastSeen: normalizarRota(
+      document.getElementById("rotaLastSeen").value
+    )
+
+  };
+
+
+  if (
+    !dados.rotaTemp ||
+    !dados.rotaHum ||
+    !dados.rotaPorta ||
+    !dados.rotaLastSeen
+  ) {
+
+    alert("Preencha todas as rotas do Firebase.");
+
+    return;
+
+  }
+
+
+  db.ref(`central_sensores/${id}`).update(dados)
+
+    .then(() => {
+
+      alert(editando
+        ? "Configurações atualizadas!"
+        : "Sensor cadastrado!"
+      );
+
+      fecharModal();
+
+    })
+
+    .catch(erro => {
+
+      console.error(erro);
+
+      alert("Erro ao salvar no Firebase. Verifique a conexão e as permissões.");
+
+    });
+
+}
+
+
+/* =====================================================
+   EXCLUIR SENSOR DA CENTRAL
+===================================================== */
+
+function excluir(id) {
+
+  if (!modoAdminAtivo) {
+
+    alert("Ative o modo administrativo clicando cinco vezes no nome CENTRAL NEWENERGY.");
+
+    return;
+
+  }
+
+
+  if (!confirm(`Deseja excluir permanentemente o ${id} da central?`)) return;
+
+
+  db.ref(`central_sensores/${id}`).remove()
+
+    .then(() => {
+
+      alert("Sensor removido da central.");
+
+    })
+
+    .catch(erro => {
+
+      console.error(erro);
+
+      alert("Erro ao excluir o sensor.");
+
+    });
+
+}
+
+</script>
+
+<!-- RODAPÉ NEWENERGY -->
+<footer class="bg-white border-t border-slate-200 mt-10">
+  <div class="max-w-7xl mx-auto px-6 py-6 text-center">
+
+    <p class="text-sm font-bold text-slate-700">
+      NEWENERGY SOLUÇÕES
+    </p>
+
+    <p class="text-xs text-slate-400 mt-1">
+      Automação e Monitoramento Inteligente
+    </p>
+
+    <p class="text-sm font-semibold text-slate-600 mt-4">
+      Desenvolvido por Alessandro Souza Pereira
+    </p>
+
+    <div class="flex flex-wrap justify-center items-center gap-5 mt-3">
+      <a href="https://www.instagram.com/newenergy.solucoes/"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="text-blue-600 hover:text-blue-800 text-sm font-semibold transition">
+        📷 @newenergy.solucoes
+      </a>
+
+      <a href="https://wa.me/5582987064292"
+         target="_blank"
+         rel="noopener noreferrer"
+         class="text-emerald-600 hover:text-emerald-700 text-sm font-semibold transition">
+        💬 (82) 98706-4292
+      </a>
+    </div>
+
+    <p class="text-xs text-slate-400 mt-4">
+      © 2026 NewEnergy. Todos os direitos reservados.
+    </p>
+
+  </div>
+</footer>
+
 </body>
-
 </html>
-
-
-
-

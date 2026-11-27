@@ -1,1 +1,400 @@
+#include <WiFiManager.h>
+#include <WiFi.h>
+#include <HTTPClient.h>
+#include <ArduinoJson.h>
+#include "time.h"
+#include <Wire.h>
+#include <Adafruit_SHT4x.h>
+#include <Preferences.h>
 
+// =====================================================
+// IDENTIFICAÇÃO DO SENSOR (ALTERE APENAS AQUI PARA CADA ESP32)
+// =====================================================
+#define SENSOR_NUM 1   // Mude para 1, 2, 3, 4, 5... conforme o dispositivo
+
+// =====================================================
+// IDENTIFICAÇÃO AUTOMÁTICA DE ROTAS
+// =====================================================
+String SENSOR_ID;
+String ROTA_TEMP;
+String ROTA_HUM;
+String ROTA_SEEN;
+String ROTA_CONFIG_SENSOR;
+String ROTA_HISTORICO_BASE;
+
+// =====================================================
+// CONFIGURAÇÕES DE HARDWARE E PINOS
+// =====================================================
+#define LED_PIN 13
+#define BTN_RESET 0
+#define REBOOT_INTERVAL 604800000UL // Reinício preventivo semanal (7 dias)
+
+Adafruit_SHT4x sht4;
+Preferences preferences;
+WiFiManager wm;
+
+// =====================================================
+// FIREBASE CONFIG
+// =====================================================
+const char* FIREBASE_HOST = "etecmed-solucoes-hospitalares-default-rtdb.firebaseio.com";
+const char* FIREBASE_TOKEN = "s4tU7hce8TJJwM2BwelHFyLGFSkfAWsK4zwbAiCS";
+
+// =====================================================
+// ESTRUTURA PARA BUFFER OFF-LINE (MÁXIMO 100 LEITURAS)
+// =====================================================
+struct LeituraOffline {
+  float temp;
+  float hum;
+  time_t timestamp;
+};
+
+const int MAX_OFFLINE = 100; 
+LeituraOffline bufferOffline[MAX_OFFLINE];
+int totalOffline = 0;
+
+// =====================================================
+// CONTROLE DE TEMPO E VARIÁVEIS
+// =====================================================
+unsigned long lastRealtime = 0;
+unsigned long lastHistorico = 0;
+unsigned long lastConfig = 0;
+unsigned long lastLedPoll = 0;
+
+unsigned long intervalRealtime = 5000;    
+unsigned long intervalHistorico = 60000;  
+
+float tempAtual = NAN;
+float humAtual = NAN;
+bool estadoLedAtual = false;
+
+// =====================================================
+// SALVAR E CARREGAR BUFFER NA FLASH (PREFERENCES)
+// =====================================================
+void salvarBufferNaFlash() {
+  preferences.begin("offline_data", false);
+  preferences.putInt("total", totalOffline);
+  if (totalOffline > 0) {
+    preferences.putBytes("buffer", bufferOffline, sizeof(LeituraOffline) * totalOffline);
+  }
+  preferences.end();
+}
+
+void carregarBufferDaFlash() {
+  preferences.begin("offline_data", true);
+  totalOffline = preferences.getInt("total", 0);
+  if (totalOffline > 0 && totalOffline <= MAX_OFFLINE) {
+    preferences.getBytes("buffer", bufferOffline, sizeof(LeituraOffline) * totalOffline);
+    Serial.printf("[OFFLINE] Recuperados %d registros salvos na memória Flash!\n", totalOffline);
+  } else {
+    totalOffline = 0;
+  }
+  preferences.end();
+}
+
+// =====================================================
+// WIFI CONTROLE IDÊNTICO AO CÓDIGO ANTIGO (SIMPLES E DIRETO)
+// =====================================================
+unsigned long lastWifiRetry = 0;
+bool online = false;
+
+void manterWiFi() {
+  if (WiFi.status() == WL_CONNECTED) {
+    online = true;
+    return;
+  }
+
+  online = false;
+
+  if (millis() - lastWifiRetry < 15000)
+    return;
+
+  lastWifiRetry = millis();
+
+  Serial.println("[WIFI] Tentando reconectar...");
+
+  WiFi.disconnect(false);
+  delay(100);
+  WiFi.reconnect();
+}
+
+// =====================================================
+// FIREBASE PUT
+// =====================================================
+bool firebasePUT(String path, String value) {
+  if (!online)
+    return false;
+
+  HTTPClient http;
+  String url = "https://" + String(FIREBASE_HOST) + path + "?auth=" + FIREBASE_TOKEN;
+
+  http.begin(url);
+  http.setTimeout(2500);
+  http.addHeader("Content-Type", "application/json");
+
+  int codigo = http.PUT(value);
+  http.end();
+
+  return (codigo == 200 || codigo == 204);
+}
+
+// =====================================================
+// LÓGICA DE MEMÓRIA OFF-LINE
+// =====================================================
+void salvarLeituraOffline(float t, float h, time_t ts) {
+  if (totalOffline >= MAX_OFFLINE) {
+    for (int i = 0; i < MAX_OFFLINE - 1; i++) {
+      bufferOffline[i] = bufferOffline[i + 1];
+    }
+    totalOffline = MAX_OFFLINE - 1;
+  }
+
+  bufferOffline[totalOffline].temp = t;
+  bufferOffline[totalOffline].hum = h;
+  bufferOffline[totalOffline].timestamp = ts;
+  totalOffline++;
+
+  salvarBufferNaFlash();
+  Serial.printf("[OFFLINE] Sem Wi-Fi! Leitura retida na Flash (%d/%d)\n", totalOffline, MAX_OFFLINE);
+}
+
+void descarregarBufferOffline() {
+  if (totalOffline == 0 || !online) return;
+
+  Serial.printf("[OFFLINE] Conexão ativa! Sincronizando %d leituras salvas para %s...\n", totalOffline, SENSOR_ID.c_str());
+
+  for (int i = 0; i < totalOffline; i++) {
+    struct tm ti;
+    localtime_r(&bufferOffline[i].timestamp, &ti);
+    char dataHoje[16];
+    strftime(dataHoje, sizeof(dataHoje), "%Y-%m-%d", &ti);
+
+    String json = "{\"temp\":" + String(bufferOffline[i].temp, 2) +
+                  ",\"hum\":" + String(bufferOffline[i].hum, 2) +
+                  ",\"offline\":true}";
+
+    String caminho = ROTA_HISTORICO_BASE + "/" + String(dataHoje) + "/" + String(bufferOffline[i].timestamp) + ".json";
+
+    if (!firebasePUT(caminho, json)) {
+      Serial.println("[OFFLINE] Falha ao enviar lote pendente. Interrompendo tentativa.");
+      return;
+    }
+    delay(50);
+  }
+
+  totalOffline = 0;
+  salvarBufferNaFlash();
+  Serial.println("[OFFLINE] Sincronização off-line concluída!");
+}
+
+// =====================================================
+// CONTROLE LED
+// =====================================================
+void checarLedInstantaneo() {
+  if (!online) return;
+
+  HTTPClient http;
+  http.begin("https://" + String(FIREBASE_HOST) + "/led.json?auth=" + FIREBASE_TOKEN);
+  http.setTimeout(800);
+
+  if (http.GET() == 200) {
+    String resposta = http.getString();
+    bool novoEstado = (resposta.indexOf('1') != -1);
+
+    if (novoEstado != estadoLedAtual) {
+      estadoLedAtual = novoEstado;
+      digitalWrite(LED_PIN, estadoLedAtual ? HIGH : LOW);
+    }
+  }
+  http.end();
+}
+
+// =====================================================
+// BUSCA CONFIGURAÇÃO DE INTERVALO NO FIREBASE
+// =====================================================
+void sincronizarConfiguracao() {
+  if (!online) return;
+
+  HTTPClient http;
+  bool configurado = false;
+  
+  http.begin("https://" + String(FIREBASE_HOST) + ROTA_CONFIG_SENSOR + "?auth=" + FIREBASE_TOKEN);
+  http.setTimeout(2500);
+
+  int httpCode = http.GET();
+  if (httpCode == 200) {
+    StaticJsonDocument<512> doc;
+    DeserializationError err = deserializeJson(doc, http.getString());
+
+    if (!err) {
+      long val = 0;
+      if (doc.containsKey("freqRegistro")) {
+        val = doc["freqRegistro"];
+      } else if (doc.containsKey("intervaloAlerta")) {
+        val = doc["intervaloAlerta"];
+      } else if (doc.containsKey("intervalo")) {
+        val = doc["intervalo"];
+      } else if (doc.containsKey("intervalo_historico")) {
+        val = doc["intervalo_historico"];
+      }
+
+      if (val > 0) {
+        intervalHistorico = (unsigned long)val * 1000UL;
+        configurado = true;
+      } else if (doc.containsKey("leiturasPorHora")) {
+        int freq = doc["leiturasPorHora"];
+        if (freq > 0) {
+          intervalHistorico = (3600UL / freq) * 1000UL;
+          configurado = true;
+        }
+      }
+    }
+  }
+  http.end();
+}
+
+// =====================================================
+// SETUP
+// =====================================================
+void setup() {
+  Serial.begin(115200);
+  delay(200);
+
+  char bufferId[16];
+  sprintf(bufferId, "SENSOR_%02d", SENSOR_NUM);
+  SENSOR_ID = String(bufferId);
+
+  ROTA_TEMP          = "/sensores/" + SENSOR_ID + "/temp";
+  ROTA_HUM           = "/sensores/" + SENSOR_ID + "/hum";
+  ROTA_SEEN          = "/sensores/" + SENSOR_ID + "/last_seen";
+  ROTA_CONFIG_SENSOR = "/central_sensores/" + SENSOR_ID + ".json";
+  ROTA_HISTORICO_BASE= "/historico/" + SENSOR_ID + "/diario";
+
+  pinMode(LED_PIN, OUTPUT);
+  pinMode(BTN_RESET, INPUT_PULLUP);
+
+  carregarBufferDaFlash();
+
+  // 1. Inicia o barramento do sensor primeiro (como no antigo)
+  Wire.begin(2, 15);
+  if (!sht4.begin()) {
+    Serial.println("[SENSOR] Erro SHT41!");
+  } else {
+    Serial.println("[SENSOR] SHT41 OK");
+  }
+
+  // 2. Inicia o WiFiManager
+  wm.setTitle("NewEnergy Monitor Pro");
+
+  if (digitalRead(BTN_RESET) == LOW) {
+    wm.resetSettings();
+    preferences.begin("offline_data", false);
+    preferences.clear();
+    preferences.end();
+    delay(1000);
+    ESP.restart();
+  }
+
+  String apName = "NewEnergy_Setup_" + String(SENSOR_NUM);
+  
+  if (!wm.autoConnect(apName.c_str())) {
+    ESP.restart();
+  }
+
+  WiFi.setAutoReconnect(true);
+  WiFi.setSleep(false);
+
+  configTime(-10800, 0, "pool.ntp.org", "time.google.com");
+  sincronizarConfiguracao();
+
+  Serial.println("================================");
+  Serial.print("[SYSTEM] DISPOSITIVO INICIALIZADO: ");
+  Serial.println(SENSOR_ID);
+  Serial.println("================================");
+}
+
+// =====================================================
+// LOOP PRINCIPAL
+// =====================================================
+void loop() {
+  if (millis() > REBOOT_INTERVAL) {
+    ESP.restart();
+  }
+
+  // ===== WIFI CONTROL =====
+  manterWiFi();
+
+  // ===== SENSOR & LEITURA (RODA SEMPRE, COM OU SEM INTERNET) =====
+  sensors_event_t h, t;
+  sht4.getEvent(&h, &t);
+  if (!isnan(t.temperature)) {
+    tempAtual = t.temperature;
+    humAtual  = h.relative_humidity;
+  }
+
+  // ===== TEMPO REAL (SÓ QUANDO ONLINE) =====
+  if (online && (millis() - lastRealtime >= intervalRealtime)) {
+    lastRealtime = millis();
+
+    if (!isnan(tempAtual)) {
+      if (totalOffline > 0) {
+        descarregarBufferOffline();
+      }
+
+      firebasePUT(ROTA_TEMP + ".json", String(tempAtual, 2));
+      firebasePUT(ROTA_HUM + ".json", String(humAtual, 2));
+      firebasePUT(ROTA_SEEN + ".json", String(time(NULL)));
+    }
+  }
+
+  // ===== CONFIG (SÓ QUANDO ONLINE) =====
+  if (online && (millis() - lastConfig >= 120000)) {
+    lastConfig = millis();
+    sincronizarConfiguracao();
+  }
+
+  // ===== LED (SÓ QUANDO ONLINE) =====
+  if (online && (millis() - lastLedPoll >= 3000)) {
+    lastLedPoll = millis();
+    checarLedInstantaneo();
+  }
+
+  // ===== HISTÓRICO (GERENCIA ONLINE OU OFFLINE AUTOMATICAMENTE) =====
+  if (millis() - lastHistorico >= intervalHistorico) {
+    lastHistorico = millis();
+
+    if (!isnan(tempAtual)) {
+      time_t agora = time(NULL);
+
+      struct tm ti;
+      if (getLocalTime(&ti)) {
+        char dataHoje[16];
+        strftime(dataHoje, sizeof(dataHoje), "%Y-%m-%d", &ti);
+
+        String json = "{\"temp\":" + String(tempAtual, 2) + ",\"hum\":" + String(humAtual, 2) + "}";
+        String caminho = ROTA_HISTORICO_BASE + "/" + String(dataHoje) + "/" + String(agora) + ".json";
+
+        if (online) {
+          if (totalOffline > 0) {
+            descarregarBufferOffline();
+          }
+          firebasePUT(caminho, json);
+          Serial.println("[HISTORICO] Registro enviado ao Firebase (" + SENSOR_ID + "): " + caminho);
+        } else {
+          // Se estiver offline, salva na memória Flash com segurança!
+          salvarLeituraOffline(tempAtual, humAtual, agora);
+        }
+      }
+    }
+  } else {
+    // Se estiver offline e não for momento de histórico, avisa de vez em quando sem travar
+    if (!online) {
+      static unsigned long lastOfflineLog = 0;
+      if (millis() - lastOfflineLog > 5000) {
+        lastOfflineLog = millis();
+        Serial.println("[NET] Operando offline - Dados sendo retidos para envio posterior.");
+      }
+    }
+  }
+
+  delay(10);
+}

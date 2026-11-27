@@ -95,12 +95,6 @@
             color: white;
         }
 
-        .btn-porta {
-            background: #fee2e2;
-            color: #991b1b;
-            border: 1px solid #fca5a5;
-        }
-
         .tabs {
             display: flex;
             background: #e2e8f0;
@@ -231,35 +225,6 @@
             cursor: pointer;
             color: var(--text-secondary);
             padding: 0 8px;
-        }
-
-        .door-card-status {
-            background: var(--bg-color);
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border: 1px solid var(--border-color);
-            gap: 10px;
-        }
-
-        .door-badge {
-            padding: 6px 14px;
-            border-radius: 20px;
-            font-weight: bold;
-            font-size: 0.85rem;
-        }
-
-        .door-badge.aberta {
-            background: #ffe4e6;
-            color: var(--accent-red);
-        }
-
-        .door-badge.fechada {
-            background: #d1fae5;
-            color: var(--accent-green);
         }
 
         .stats-grid {
@@ -405,7 +370,6 @@
         </div>
 
         <div class="actions">
-            <button id="btnVerPorta" class="btn-porta">🚪 Ver Histórico da Porta</button>
             <button id="btnPdf" class="btn-primary">Exportar PDF Temp/Umid</button>
             <button id="btnVoltar" class="btn-secundary">Voltar</button>
         </div>
@@ -428,65 +392,6 @@
         </div>
     </div>
 </div>
-
-<div class="modal-overlay" id="modalPorta">
-    <div class="modal-content">
-        <div class="modal-header">
-            <h3>🚪 Histórico de Monitoramento da Porta</h3>
-            <button class="btn-close" id="btnCloseModal">&times;</button>
-        </div>
-
-        <div class="tabs" id="tabsGroupPorta">
-            <div class="tab active" data-periodo-porta="diario">Hoje</div>
-            <div class="tab" data-periodo-porta="semanal">7 Dias</div>
-            <div class="tab" data-periodo-porta="mensal">Este Mês</div>
-            <div class="tab" data-periodo-porta="anual">Este Ano</div>
-        </div>
-
-        <div class="door-card-status">
-            <div>
-                <span style="font-weight:600;color:var(--text-secondary);font-size:.85rem">
-                    Estado Atual da Porta:
-                </span>
-                <div id="portaStatusTxt" style="font-size:1.1rem;font-weight:bold;margin-top:2px">
-                    --
-                </div>
-            </div>
-            <div id="portaBadge" class="door-badge fechada">FECHADA</div>
-        </div>
-
-        <div class="stats-grid">
-            <div class="stat-box">
-                <h3 id="statTotalAberturas">0</h3>
-                <p>Aberturas Registradas</p>
-            </div>
-            <div class="stat-box">
-                <h3 id="statTempoTotal">0s</h3>
-                <p>Tempo Total Aberta</p>
-            </div>
-        </div>
-
-        <div style="margin-bottom:12px;text-align:right">
-            <button id="btnPdfPorta" class="btn-primary" style="font-size:.85rem;padding:6px 12px">
-                Exportar PDF da Porta
-            </button>
-        </div>
-
-        <div class="modal-body-scroll list-container">
-            <div id="lista-historico-porta">
-                <p style="text-align:center;padding:20px">Carregando histórico da porta...</p>
-            </div>
-        </div>
-    </div>
-</div>
-
-<script>
-"use strict";
-
-/* =========================================================
-   FIREBASE
-   ========================================================= */
-
 const firebaseConfig = {
   apiKey: "AIzaSyCXh0pBOF4X7ERQh3NvLcClgltnoXEWlTs",
   authDomain: "panorama-48794.firebaseapp.com",
@@ -518,13 +423,9 @@ const state = {
     sensorID: new URLSearchParams(window.location.search).get("id") || "SENSOR_01",
     sensorConfig: null,
     globalData: [],
-    globalDataPorta: [],
     chartInstance: null,
     periodoAtual: "diario",
-    periodoPortaAtual: "diario",
-    limites: { tMin: 2, tMax: 8, hMin: 30, hMax: 70 },
-    portaRealtime: "FECHADA",
-    eventosPortaCalculados: []
+    limites: { tMin: 2, tMax: 8, hMin: 30, hMax: 70 }
 };
 
 let elements = {};
@@ -539,50 +440,22 @@ document.addEventListener("DOMContentLoaded", () => {
         lblHMax: document.getElementById("lblHMax"),
         erroFirebase: document.getElementById("erroFirebase"),
         listaHistorico: document.getElementById("lista-historico"),
-        listaHistoricoPorta: document.getElementById("lista-historico-porta"),
         btnPdf: document.getElementById("btnPdf"),
-        btnPdfPorta: document.getElementById("btnPdfPorta"),
         btnVoltar: document.getElementById("btnVoltar"),
-        btnVerPorta: document.getElementById("btnVerPorta"),
-        btnCloseModal: document.getElementById("btnCloseModal"),
-        modalPorta: document.getElementById("modalPorta"),
         tabsGroup: document.getElementById("tabsGroup"),
-        tabsGroupPorta: document.getElementById("tabsGroupPorta"),
-        portaStatusTxt: document.getElementById("portaStatusTxt"),
-        portaBadge: document.getElementById("portaBadge"),
-        statTotalAberturas: document.getElementById("statTotalAberturas"),
-        statTempoTotal: document.getElementById("statTempoTotal"),
         chartCtx: document.getElementById("mainChart")
             ? document.getElementById("mainChart").getContext("2d")
             : null
     };
 
     setupEventListeners();
-    ouvirPortaRealtime();
     carregarSensorESuasConfiguracoes();
 });
 
 function setupEventListeners() {
     elements.btnVoltar.addEventListener("click", voltarPainel);
     elements.btnPdf.addEventListener("click", exportarPDF);
-    elements.btnPdfPorta.addEventListener("click", exportarPDFPorta);
-
-    elements.btnVerPorta.addEventListener("click", () => {
-        elements.modalPorta.style.display = "flex";
-        fetchDataPorta(state.periodoPortaAtual);
-    });
-
-    elements.btnCloseModal.addEventListener("click", () => {
-        elements.modalPorta.style.display = "none";
-    });
-
-    elements.modalPorta.addEventListener("click", event => {
-        if (event.target === elements.modalPorta) {
-            elements.modalPorta.style.display = "none";
-        }
-    });
-
-    elements.tabsGroup.addEventListener("click", event => {
+elements.tabsGroup.addEventListener("click", event => {
         const tab = event.target.closest(".tab");
         if (!tab) return;
 
@@ -593,19 +466,6 @@ function setupEventListeners() {
 
         state.periodoAtual = tab.dataset.periodo;
         fetchData(state.periodoAtual);
-    });
-
-    elements.tabsGroupPorta.addEventListener("click", event => {
-        const tab = event.target.closest(".tab");
-        if (!tab) return;
-
-        elements.tabsGroupPorta.querySelectorAll(".tab").forEach(item =>
-            item.classList.remove("active")
-        );
-        tab.classList.add("active");
-
-        state.periodoPortaAtual = tab.dataset.periodoPorta;
-        fetchDataPorta(state.periodoPortaAtual);
     });
 }
 
@@ -623,40 +483,7 @@ function escapeHtml(value) {
     })[char]);
 }
 
-function formatarDuracao(ms) {
-    if (!Number.isFinite(ms) || ms <= 0) return "0s";
 
-    const totalSegundos = Math.floor(ms / 1000);
-    const horas = Math.floor(totalSegundos / 3600);
-    const minutos = Math.floor((totalSegundos % 3600) / 60);
-    const segundos = totalSegundos % 60;
-
-    const resultado = [];
-
-    if (horas > 0) resultado.push(`${horas}h`);
-    if (minutos > 0) resultado.push(`${minutos}m`);
-    if (segundos > 0 || resultado.length === 0) {
-        resultado.push(`${segundos}s`);
-    }
-
-    return resultado.join(" ");
-}
-
-function normalizarTimestamp(valor) {
-    let timestamp = Number(valor);
-
-    if (!Number.isFinite(timestamp) || timestamp <= 0) {
-        return null;
-    }
-
-    if (timestamp < 1e11) {
-        timestamp *= 1000;
-    }
-
-    const data = new Date(timestamp);
-
-    return Number.isNaN(data.getTime()) ? null : timestamp;
-}
 
 function dataLocalISO(data) {
     const ano = data.getFullYear();
@@ -949,7 +776,7 @@ async function fetchData(periodo) {
     }
 }
 
-function renderUI() {
+                    function renderUI() {
     elements.listaHistorico.innerHTML = "";
 
     let ultimaData = "";
@@ -1084,432 +911,141 @@ function mostrarSemDados() {
         '<p style="text-align:center;padding:40px">Nenhum registro encontrado no período selecionado.</p>';
 }
 
-/* =========================================================
-   ESTADO ATUAL DA PORTA
-   ========================================================= */
-
-function extrairEstadoPorta(obj) {
-    if (obj === null || obj === undefined) return "FECHADA";
-
-    let valor = obj;
-
-    if (typeof obj === "object") {
-        valor = obj.porta_aberta !== undefined
-            ? obj.porta_aberta
-            : obj.porta !== undefined
-                ? obj.porta
-                : obj.p !== undefined
-                    ? obj.p
-                    : obj.door;
-    }
-
-    if (valor === undefined || valor === null) {
-        return "FECHADA";
-    }
-
-    if (
-        valor === true ||
-        valor === 1 ||
-        valor === "1" ||
-        ["ABERTA", "TRUE", "OPEN"].includes(
-            String(valor).toUpperCase()
-        )
-    ) {
-        return "ABERTA";
-    }
-
-    return "FECHADA";
-}
-
-function ouvirPortaRealtime() {
-    db.ref(`sensores/${state.sensorID}`).on(
-        "value",
-        snapshot => {
-            if (!snapshot.exists()) return;
-
-            const dados = snapshot.val();
-
-            const temCampoPorta =
-                dados.porta_aberta !== undefined ||
-                dados.porta !== undefined ||
-                dados.p !== undefined ||
-                dados.door !== undefined;
-
-            if (!temCampoPorta) return;
-
-            state.portaRealtime = extrairEstadoPorta(dados);
-            atualizarEstadoAtualPorta();
-        },
-        error => {
-            console.error(
-                "Erro ao acompanhar estado da porta:",
-                error
-            );
-        }
-    );
-}
-
-function atualizarEstadoAtualPorta() {
-    const estado = state.portaRealtime || "FECHADA";
-    const aberta = estado === "ABERTA";
-
-    elements.portaBadge.textContent = estado;
-
-    elements.portaBadge.className =
-        `door-badge ${aberta ? "aberta" : "fechada"}`;
-
-    elements.portaStatusTxt.textContent = aberta
-        ? "Porta ABERTA no momento"
-        : "Porta FECHADA no momento";
-}
-
-/* =========================================================
-   HISTÓRICO DA PORTA
-   ========================================================= */
-
-async function fetchDataPorta(periodo) {
-    elements.listaHistoricoPorta.innerHTML =
-        '<p style="text-align:center;padding:20px">Sincronizando histórico da porta...</p>';
-
-    state.globalDataPorta = [];
-    state.eventosPortaCalculados = [];
-
-    try {
-        const agora = new Date();
-
-        const [eventosSnap, historicoSnap, sensorSnap] =
-            await Promise.all([
-                db.ref(`historico/${state.sensorID}/eventos_porta`)
-                    .limitToLast(1000).once("value"),
-
-                db.ref(`historico/${state.sensorID}`)
-                    .limitToLast(2000).once("value"),
-
-                db.ref(`sensores/${state.sensorID}`).once("value")
-            ]);
-
-        const estados = [];
-        const eventosDiretos = [];
-
-        if (eventosSnap.exists()) {
-            const dadosEventos = eventosSnap.val();
-
-            Object.keys(dadosEventos).forEach(chave => {
-                const evento = dadosEventos[chave];
-
-                if (!evento || typeof evento !== "object") return;
-
-                const duracaoSegs =
-                    Number(evento.duracao_segs);
-
-                if (
-                    Number.isFinite(duracaoSegs) &&
-                    duracaoSegs >= 0 &&
-                    evento.timestamp !== undefined
-                ) {
-                    const fechamento =
-                        normalizarTimestamp(evento.timestamp);
-
-                    if (!fechamento) return;
-
-                    const abertura =
-                        fechamento - duracaoSegs * 1000;
-
-                    const aberturaNoPeriodo =
-                        estaNoPeriodo(abertura, periodo, agora);
-
-                    const fechamentoNoPeriodo =
-                        estaNoPeriodo(fechamento, periodo, agora);
-
-                    if (aberturaNoPeriodo || fechamentoNoPeriodo) {
-                        eventosDiretos.push({
-                            inicio: abertura,
-                            fim: fechamento,
-                            duracao: Math.max(
-                                0,
-                                fechamento - abertura
-                            ),
-                            status: "CONCLUIDO",
-                            origem: "evento"
-                        });
-                    }
-
-                    return;
-                }
-
-                const temEstado =
-                    evento.porta !== undefined ||
-                    evento.porta_aberta !== undefined ||
-                    evento.p !== undefined ||
-                    evento.door !== undefined;
-
-                if (temEstado) {
-                    const ts = normalizarTimestamp(
-                        evento.timestamp || evento.ts || chave
-                    );
-
-                    if (ts && estaNoPeriodo(ts, periodo, agora)) {
-                        estados.push({
-                            ts,
-                            porta: extrairEstadoPorta(evento)
-                        });
-                    }
-                }
-            });
-        }
-
-        function varrerHistorico(obj, chaveAtual = null) {
-            if (!obj || typeof obj !== "object") return;
-
-            if (
-                obj.duracao_segs !== undefined &&
-                obj.timestamp !== undefined
-            ) {
-                return;
-            }
-
-            const temEstado =
-                obj.porta !== undefined ||
-                obj.porta_aberta !== undefined ||
-                obj.p !== undefined ||
-                obj.door !== undefined;
-
-            if (temEstado) {
-                const ts = normalizarTimestamp(
-                    obj.timestamp ||
-                    obj.ts ||
-                    obj.last_seen ||
-                    chaveAtual
-                );
-
-                if (ts && estaNoPeriodo(ts, periodo, agora)) {
-                    estados.push({
-                        ts,
-                        porta: extrairEstadoPorta(obj)
-                    });
-                }
-
-                return;
-            }
-
-            Object.keys(obj).forEach(chave => {
-                const filho = obj[chave];
-
-                if (filho && typeof filho === "object") {
-                    varrerHistorico(filho, chave);
-                }
-            });
-        }
-
-        if (historicoSnap.exists()) {
-            varrerHistorico(historicoSnap.val());
-        }
-
-        if (sensorSnap.exists()) {
-            const sensor = sensorSnap.val();
-
-            const temEstado =
-                sensor.porta_aberta !== undefined ||
-                sensor.porta !== undefined ||
-                sensor.p !== undefined ||
-                sensor.door !== undefined;
-
-            if (temEstado) {
-                const estado = extrairEstadoPorta(sensor);
-                state.portaRealtime = estado;
-            }
-        }
-
-        const estadosUnicos = new Map();
-
-        estados.forEach(registro => {
-            estadosUnicos.set(
-                `${registro.ts}_${registro.porta}`,
-                registro
-            );
-        });
-
-        const estadosOrdenados =
-            [...estadosUnicos.values()]
-                .sort((a, b) => a.ts - b.ts);
-
-        const eventosLegados = [];
-        let inicioAbertura = null;
-
-        estadosOrdenados.forEach(registro => {
-            if (
-                registro.porta === "ABERTA" &&
-                inicioAbertura === null
-            ) {
-                inicioAbertura = registro.ts;
-            } else if (
-                registro.porta === "FECHADA" &&
-                inicioAbertura !== null
-            ) {
-                if (registro.ts >= inicioAbertura) {
-                    eventosLegados.push({
-                        inicio: inicioAbertura,
-                        fim: registro.ts,
-                        duracao: registro.ts - inicioAbertura,
-                        status: "CONCLUIDO",
-                        origem: "legado"
-                    });
-                }
-
-                inicioAbertura = null;
-            }
-        });
-
-        if (inicioAbertura !== null) {
-            eventosLegados.push({
-                inicio: inicioAbertura,
-                fim: null,
-                duracao: Date.now() - inicioAbertura,
-                status: "ABERTA",
-                origem: "legado"
-            });
-        }
-
-        const todosEventos =
-            [...eventosDiretos, ...eventosLegados];
-
-        const eventosUnicos = new Map();
-
-        todosEventos.forEach(evento => {
-            const chave =
-                `${evento.inicio}_${evento.fim ?? "aberto"}`;
-
-            if (!eventosUnicos.has(chave)) {
-                eventosUnicos.set(chave, evento);
-            } else if (evento.origem === "evento") {
-                eventosUnicos.set(chave, evento);
-            }
-        });
-
-        const porAbertura = new Map();
-
-        [...eventosUnicos.values()].forEach(evento => {
-            const chave = String(evento.inicio);
-            const existente = porAbertura.get(chave);
-
-            if (!existente || evento.origem === "evento") {
-                porAbertura.set(chave, evento);
-            }
-        });
-
-        state.eventosPortaCalculados =
-            [...porAbertura.values()]
-                .sort((a, b) => b.inicio - a.inicio)
-                .map(evento => {
-                    const inicioFmt =
-                        formatarDataHora(evento.inicio, true);
-
-                    const fimFmt = evento.fim
-                        ? formatarDataHora(evento.fim, true)
-                        : null;
-
-                    return {
-                        ...evento,
-                        data: inicioFmt.data,
-                        horaAbertura: inicioFmt.hora,
-                        horaFechamento: fimFmt
-                            ? fimFmt.hora
-                            : "Ainda Aberta",
-                        duracao: evento.fim
-                            ? Math.max(
-                                0,
-                                evento.fim - evento.inicio
-                            )
-                            : Math.max(
-                                0,
-                                Date.now() - evento.inicio
-                            )
-                    };
-                });
-
-        let tempoTotal = 0;
-
-        state.eventosPortaCalculados.forEach(evento => {
-            tempoTotal += evento.duracao;
-        });
-
-        elements.statTotalAberturas.textContent =
-            state.eventosPortaCalculados.length;
-
-        elements.statTempoTotal.textContent =
-            formatarDuracao(tempoTotal);
-
-        renderModalPorta();
-
-    } catch (error) {
-        console.error(
-            "Erro ao carregar histórico da porta:",
-            error
-        );
-
-        elements.listaHistoricoPorta.innerHTML =
-            `<div class="erro">Erro ao carregar dados da porta.<br><br>${escapeHtml(error.message)}</div>`;
-    }
-}
-
-/* =========================================================
-   EXIBIÇÃO DO HISTÓRICO DA PORTA
-   ========================================================= */
-
-function renderModalPorta() {
-    elements.listaHistoricoPorta.innerHTML = "";
-
-    atualizarEstadoAtualPorta();
-
-    const eventos = state.eventosPortaCalculados;
-
-    if (!eventos.length) {
-        elements.statTotalAberturas.textContent = "0";
-        elements.statTempoTotal.textContent = "0s";
-
-        elements.listaHistoricoPorta.innerHTML =
-            '<p style="text-align:center;padding:20px">Nenhum evento registrado no período.</p>';
-
-        return;
-    }
+                    function renderUI() {
+    elements.listaHistorico.innerHTML = "";
 
     let ultimaData = "";
 
-    eventos.forEach(evento => {
-        if (evento.data !== ultimaData) {
+    state.globalData.forEach(item => {
+        if (item.data !== ultimaData) {
             const divider = document.createElement("div");
             divider.className = "data-divider";
-            divider.textContent = evento.data;
+            divider.textContent = item.data;
 
-            elements.listaHistoricoPorta.appendChild(divider);
-            ultimaData = evento.data;
+            elements.listaHistorico.appendChild(divider);
+            ultimaData = item.data;
         }
 
-        const div = document.createElement("div");
+        const { erroTemp, erroHum, temErro } =
+            checarErro(item.temp, item.hum);
 
-        div.className =
-            `item ${evento.status === "ABERTA" ? "alerta" : ""}`;
+        const div = document.createElement("div");
+        div.className = `item ${temErro ? "alerta" : ""}`;
 
         div.innerHTML = `
-            <div>
-                <b>Abriu às ${escapeHtml(evento.horaAbertura)}</b><br>
-                <small style="color:var(--text-secondary)">
-                    Fechou às: ${escapeHtml(evento.horaFechamento)}
-                </small>
-            </div>
-            <div style="text-align:right;min-width:95px">
-                <small style="color:var(--text-secondary)">TEMPO ABERTA</small><br>
-                <span class="${evento.status === "ABERTA" ? "valor-critico" : "normal"}">
-                    ${formatarDuracao(evento.duracao)}
-                </span>
+            <div><b>${escapeHtml(item.hora)}</b></div>
+            <div style="display:flex;gap:20px;text-align:right">
+                <div>
+                    <small>TEMP</small><br>
+                    <span class="${erroTemp ? "valor-critico" : ""}">
+                        ${item.temp.toFixed(1)}°C
+                    </span>
+                </div>
+                <div>
+                    <small>UMID</small><br>
+                    <span class="${erroHum ? "valor-critico" : ""}">
+                        ${item.hum.toFixed(1)}%
+                    </span>
+                </div>
+                <div>
+                    <small>STATUS</small><br>
+                    <span class="${temErro ? "valor-critico" : "normal"}">
+                        ${temErro ? "ALERTA" : "OK"}
+                    </span>
+                </div>
             </div>
         `;
 
-        elements.listaHistoricoPorta.appendChild(div);
+        elements.listaHistorico.appendChild(div);
     });
 }
 
-/* =========================================================
+function renderChart(periodo) {
+    if (!elements.chartCtx) return;
+
+    const dados =
+        [...state.globalData].sort((a, b) => a.ts - b.ts);
+
+    const gradTemp =
+        elements.chartCtx.createLinearGradient(0, 0, 0, 300);
+
+    gradTemp.addColorStop(0, "rgba(244, 63, 94, 0.2)");
+    gradTemp.addColorStop(1, "rgba(244, 63, 94, 0)");
+
+    const gradHum =
+        elements.chartCtx.createLinearGradient(0, 0, 0, 300);
+
+    gradHum.addColorStop(0, "rgba(0, 122, 255, 0.2)");
+    gradHum.addColorStop(1, "rgba(0, 122, 255, 0)");
+
+    state.chartInstance = new Chart(elements.chartCtx, {
+        type: "line",
+
+        data: {
+            labels: dados.map(item =>
+                (periodo === "diario" || periodo === "semanal")
+                    ? `${item.data.split("/")[0]}/${item.data.split("/")[1]} ${item.hora}`
+                    : item.data
+            ),
+
+            datasets: [
+                {
+                    label: "Temperatura (°C)",
+                    data: dados.map(item => item.temp),
+                    borderColor: "#f43f5e",
+                    backgroundColor: gradTemp,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: dados.length > 40 ? 0 : 3,
+                    borderWidth: 2
+                },
+                {
+                    label: "Umidade (%)",
+                    data: dados.map(item => item.hum),
+                    borderColor: "#007aff",
+                    backgroundColor: gradHum,
+                    fill: true,
+                    tension: 0.3,
+                    pointRadius: dados.length > 40 ? 0 : 3,
+                    borderWidth: 2
+                }
+            ]
+        },
+
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: "index",
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: "top"
+                }
+            },
+            scales: {
+                x: {
+                    ticks: {
+                        autoSkip: true,
+                        maxTicksLimit: 8
+                    }
+                },
+                y: {
+                    grid: {
+                        color: "#f1f5f9"
+                    }
+                }
+            }
+        }
+    });
+}
+
+function mostrarSemDados() {
+    elements.listaHistorico.innerHTML =
+        '<p style="text-align:center;padding:40px">Nenhum registro encontrado no período selecionado.</p>';
+}
+                    /* =========================================================
    PDF - TEMPERATURA E UMIDADE
    ========================================================= */
 
@@ -1689,186 +1225,13 @@ async function exportarPDF() {
     }
 }
 
-/* =========================================================
-   PDF - HISTÓRICO DA PORTA
-   ========================================================= */
-
-async function exportarPDFPorta() {
-    const jsPDF = window.jspdf
-        ? window.jspdf.jsPDF
-        : window.jsPDF;
-
-    if (!jsPDF) {
-        alert("Biblioteca de PDF não foi carregada.");
-        return;
-    }
-
-    const eventos = state.eventosPortaCalculados;
-
-    if (!eventos || eventos.length === 0) {
-        alert("Não existem eventos de porta para exportar no período.");
-        return;
-    }
-
-    const doc = new jsPDF();
-
-    const aba =
-        document.querySelector("#tabsGroupPorta .tab.active").innerText;
-
-    const textoOriginal = elements.btnPdfPorta.innerText;
-
-    elements.btnPdfPorta.disabled = true;
-
-    try {
-        const porPagina = 24;
-
-        const totalPaginas = Math.max(
-            1,
-            Math.ceil(eventos.length / porPagina)
-        );
-
-        function desenharHeader(pagina) {
-            doc.setFillColor(153, 27, 27);
-            doc.rect(0, 0, 210, 38, "F");
-
-            doc.setTextColor(255, 255, 255);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(20);
-            doc.text("NEWENERGY", 15, 16);
-
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(9);
-
-            doc.text(
-                "RELATÓRIO DE MONITORAMENTO DA PORTA",
-                15, 23
-            );
-
-            doc.setFontSize(8);
-
-            doc.text(
-                `SENSOR: ${state.sensorID} (${elements.sensorLocal.textContent})`,
-                15, 29
-            );
-
-            doc.text(
-                `FILTRO: ${aba.toUpperCase()}`,
-                195, 15,
-                { align: "right" }
-            );
-
-            doc.text(
-                `EMISSÃO: ${new Date().toLocaleDateString("pt-BR")}`,
-                195, 21,
-                { align: "right" }
-            );
-
-            doc.text(
-                `PÁGINA: ${pagina} / ${totalPaginas}`,
-                195, 27,
-                { align: "right" }
-            );
-
-            doc.setFillColor(239, 68, 68);
-            doc.rect(0, 38, 210, 1.2, "F");
-
-            doc.setFillColor(254, 242, 242);
-            doc.rect(15, 43, 180, 10, "F");
-
-            doc.setTextColor(153, 27, 27);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(8);
-
-            doc.text(
-                `TOTAL ABERTURAS: ${elements.statTotalAberturas.textContent} | TEMPO TOTAL: ${elements.statTempoTotal.textContent}`,
-                20, 49.5
-            );
-        }
-
-        function desenharTabelaHeader(y) {
-            doc.setFillColor(245, 248, 251);
-            doc.rect(15, y - 6, 180, 10, "F");
-
-            doc.setTextColor(153, 27, 27);
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(9);
-
-            doc.text("DATA", 20, y);
-            doc.text("HORA ABERTURA", 60, y);
-            doc.text("HORA FECHAMENTO", 110, y);
-            doc.text("TEMPO ABERTA", 160, y);
-
-            return y + 10;
-        }
-
-        let pagina = 1;
-
-        desenharHeader(pagina);
-
-        let y = desenharTabelaHeader(62);
-
-        for (let i = 0; i < eventos.length; i++) {
-            const evento = eventos[i];
-
-            if (y > 280) {
-                doc.addPage();
-                pagina++;
-                desenharHeader(pagina);
-                y = desenharTabelaHeader(62);
-            }
-
-            doc.setTextColor(51, 65, 85);
-            doc.setFont("helvetica", "normal");
-            doc.setFontSize(8);
-
-            doc.text(evento.data, 20, y);
-            doc.text(evento.horaAbertura, 60, y);
-            doc.text(evento.horaFechamento, 110, y);
-
-            doc.setTextColor(225, 29, 72);
-            doc.setFont("helvetica", "bold");
-
-            doc.text(
-                formatarDuracao(evento.duracao),
-                160, y
-            );
-
-            y += 8;
-        }
-
-        doc.setFontSize(7);
-        doc.setTextColor(148, 163, 184);
-
-        doc.text(
-            "NewEnergy - Monitoramento de Porta",
-            105, 292,
-            { align: "center" }
-        );
-
-        doc.save(
-            `Relatorio_Porta_${state.sensorID}.pdf`
-        );
-
-    } catch (error) {
-        console.error("Erro ao gerar PDF da porta:", error);
-        alert("Não foi possível gerar o PDF da porta.");
-    } finally {
-        elements.btnPdfPorta.disabled = false;
-        elements.btnPdfPorta.innerText = textoOriginal;
-    }
-}
-
-/* =========================================================
-   NAVEGAÇÃO
-   ========================================================= */
-
 function voltarPainel() {
     window.location.href = "admin.html";
 }
 
 </script>
 
-<!-- =====================================================
+            <!-- =====================================================
      RODAPÉ NEWENERGY
      ===================================================== -->
 

@@ -36,8 +36,8 @@ WiFiManager wm;
 // =====================================================
 // FIREBASE CONFIG
 // =====================================================
-const char* FIREBASE_HOST = "etecmed-solucoes-hospitalares-default-rtdb.firebaseio.com";
-const char* FIREBASE_TOKEN = "s4tU7hce8TJJwM2BwelHFyLGFSkfAWsK4zwbAiCS";
+const char* FIREBASE_HOST = "panorama-48794-default-rtdb.firebaseio.com";
+const char* FIREBASE_TOKEN = "yuE9e1amQ9vZPeIRVA3qBMXOQRasagxPDg32Xpa5";
 
 // =====================================================
 // ESTRUTURA PARA BUFFER OFF-LINE (MÁXIMO 100 LEITURAS)
